@@ -1,10 +1,14 @@
 package com.example.skill_management.repository;
 
 import com.example.skill_management.model.User;
-import org.springframework.data.r2dbc.repository.R2dbcRepository;
-import reactor.core.publisher.Mono;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface UserRepository extends R2dbcRepository<User, Long> {
-    Mono<User> findByEmail(String email);
-    Mono<Boolean> existsByEmail(String email);
+
+import java.util.Optional;
+
+
+
+public interface UserRepository extends JpaRepository<User, Integer> {
+
+    Optional<User> findByEmail(String email);
 }
