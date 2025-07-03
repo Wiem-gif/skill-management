@@ -32,7 +32,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       @NonNull HttpServletResponse response,
       @NonNull FilterChain filterChain
   ) throws ServletException, IOException {
-    if (request.getServletPath().contains("/api/v1/auth")) {
+    if (request.getServletPath().contains("/skill-management/auth")) {
       filterChain.doFilter(request, response);
       return;
     }
@@ -51,11 +51,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
           .map(t -> !t.isExpired() && !t.isRevoked())
           .orElse(false);
       if (jwtService.isTokenValid(jwt, userDetails) && isTokenValid) {
-        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+        /*UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
             userDetails,
             null,
             userDetails.getAuthorities()
+        );*/
+        // Extraire authorities depuis le JWT
+        var claims = jwtService.extractAllClaims(jwt);
+        var authoritiesFromToken = claims.get("authorities", java.util.List.class);
+        var authorities = authoritiesFromToken.stream()
+                .map(authority -> new org.springframework.security.core.authority.SimpleGrantedAuthority((String) authority))
+                .toList();
+
+
+        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                userDetails,
+                null,
+                authorities
         );
+
         authToken.setDetails(
             new WebAuthenticationDetailsSource().buildDetails(request)
         );

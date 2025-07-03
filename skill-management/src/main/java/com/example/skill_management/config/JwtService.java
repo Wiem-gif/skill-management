@@ -34,8 +34,18 @@ public class JwtService {
     return claimsResolver.apply(claims);
   }
 
-  public String generateToken(UserDetails userDetails) {
+  /*public String generateToken(UserDetails userDetails) {
     return generateToken(new HashMap<>(), userDetails);
+  }*/
+  public String generateToken(UserDetails userDetails) {
+    Map<String, Object> extraClaims = new HashMap<>();
+    extraClaims.put(
+            "authorities",
+            userDetails.getAuthorities().stream()
+                    .map(a -> a.getAuthority())
+                    .toList()
+    );
+    return generateToken(extraClaims, userDetails);
   }
 
   public String generateToken(
@@ -44,6 +54,8 @@ public class JwtService {
   ) {
     return buildToken(extraClaims, userDetails, jwtExpiration);
   }
+
+
 
   public String generateRefreshToken(
       UserDetails userDetails
@@ -79,7 +91,7 @@ public class JwtService {
     return extractClaim(token, Claims::getExpiration);
   }
 
-  private Claims extractAllClaims(String token) {
+  Claims extractAllClaims(String token) {
     return Jwts
         .parserBuilder()
         .setSigningKey(getSignInKey())
