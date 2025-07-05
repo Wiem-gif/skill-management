@@ -6,6 +6,7 @@ import com.example.skill_management.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 
@@ -16,32 +17,36 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public void createUser(CreateUserRequest request, String createdBy) {
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalStateException("Email already in use");
-        }
+    public Mono<Void> createUser(CreateUserRequest request, String createdBy) {
+        return userRepository.existsByEmail(request.getEmail())
+                .flatMap(exists -> {
+                    if (exists) {
+                        return Mono.error(new IllegalStateException("Email already in use"));
+                    }
 
-        User user = User.builder()
-                .firstname(request.getFirstname())
-                .lastname(request.getLastname())
-                .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .role(request.getRole())
-                .createdBy(createdBy)
-                .creationDate(LocalDateTime.now())
-                .status(true)
-                .build();
+                    User user = User.builder()
+                            .firstname(request.getFirstname())
+                            .lastname(request.getLastname())
+                            .email(request.getEmail())
+                            .password(passwordEncoder.encode(request.getPassword()))
+                            .role(request.getRole())
+                            .createdBy(createdBy)
+                            .creationDate(LocalDateTime.now())
+                            .status(true)
+                            .build();
 
-        userRepository.save(user);
+                    return userRepository.save(user).then();
+                });
     }
-    public void deleteUser(Integer id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
 
-        if (user.isProtected()) {
-            throw new IllegalStateException("Cannot delete protected user with id: " + id);
-        }
-
-        userRepository.delete(user);
+    public Mono<Void> deleteUser(Integer id) {
+        return userRepository.findById(id)
+                .switchIfEmpty(Mono.error(new RuntimeException("User not found with id: " + id)))
+                .flatMap(user -> {
+                    if (user.isProtected()) {
+                        return Mono.error(new IllegalStateException("Cannot delete protected user with id: " + id));
+                    }
+                    return userRepository.delete(user);
+                });
     }
 }

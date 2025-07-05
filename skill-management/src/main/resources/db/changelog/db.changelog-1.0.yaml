@@ -9,10 +9,10 @@ databaseChangeLog:
               - column:
                   name: id
                   type: BIGINT
-                  autoIncrement: true
                   constraints:
                     primaryKey: true
                     nullable: false
+                  autoIncrement: true
               - column:
                   name: firstname
                   type: VARCHAR(50)
@@ -37,9 +37,14 @@ databaseChangeLog:
               - column:
                   name: created_by
                   type: VARCHAR(100)
+                  constraints:
+                    nullable: true
               - column:
                   name: creation_date
                   type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: true
               - column:
                   name: role
                   type: VARCHAR(20)
@@ -48,8 +53,12 @@ databaseChangeLog:
               - column:
                   name: status
                   type: BOOLEAN
-                  defaultValue: true
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: true
               - column:
                   name: protected
                   type: BOOLEAN
-                  defaultValue: false
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: true

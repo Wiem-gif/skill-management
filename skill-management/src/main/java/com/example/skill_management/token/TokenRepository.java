@@ -1,19 +1,16 @@
 package com.example.skill_management.token;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.r2dbc.repository.Query;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.util.List;
-import java.util.Optional;
+public interface TokenRepository extends ReactiveCrudRepository<Token, Integer> {
 
-public interface TokenRepository extends JpaRepository<Token, Integer> {
 
-  @Query(value = """
-      select t from Token t inner join User u\s
-      on t.user.id = u.id\s
-      where u.id = :id and (t.expired = false or t.revoked = false)\s
-      """)
-  List<Token> findAllValidTokenByUser(Integer id);
+  @Query("SELECT * FROM token WHERE user_id = :userId AND (expired = false OR revoked = false)")
+  Flux<Token> findAllValidTokenByUser(Integer userId);
 
-  Optional<Token> findByToken(String token);
+
+  Mono<Token> findByToken(String token);
 }

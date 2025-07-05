@@ -1,9 +1,10 @@
 package com.example.skill_management.model;
 
 import com.example.skill_management.Enum.Role;
-import com.example.skill_management.token.Token;
-import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -16,12 +17,10 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
 @Table(name = "users")
 public class User implements UserDetails {
 
     @Id
-    @GeneratedValue
     private Integer id;
 
     private String firstname;
@@ -30,26 +29,17 @@ public class User implements UserDetails {
     private String password;
     private String createdBy;
 
-    @Column(name = "creation_date")
+    @Column("creation_date")
     private LocalDateTime creationDate;
 
     private boolean status;
 
-    @Column(name = "protected")
+    @Column("protected")
     private boolean isProtected;
 
-    @Enumerated(EnumType.STRING)
     private Role role;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Token> tokens;
 
-    @PrePersist
-    public void prePersist() {
-        if (this.creationDate == null) {
-            this.creationDate = LocalDateTime.now();
-        }
-    }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -78,7 +68,5 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() { return true; }
-
-
 
 }

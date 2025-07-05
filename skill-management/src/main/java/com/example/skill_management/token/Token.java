@@ -1,33 +1,37 @@
 package com.example.skill_management.token;
-import com.example.skill_management.model.User;
-import jakarta.persistence.*;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
+
+@Table(name = "token")
 public class Token {
 
   @Id
-  @GeneratedValue
-  public Integer id;
+  
+  private Integer id;
 
-  @Column(unique = true)
-  public String token;
+  @Column("token")
+  private String token;
 
-  @Enumerated(EnumType.STRING)
-  public TokenType tokenType = TokenType.BEARER;
+  @Column("token_type")
+  private TokenType tokenType = TokenType.BEARER;
 
-  public boolean revoked;
+  @Column("revoked")
+  private boolean revoked;
 
-  public boolean expired;
+  @Column("expired")
+  private boolean expired;
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "user_id", nullable = false)
-  private User user;
+  @Column("user_id")
+  private Integer userId;
 }

@@ -3,28 +3,22 @@ package com.example.skill_management.config;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.authentication.logout.LogoutHandler;
-
+import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
+import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.authentication.logout.ServerLogoutHandler;
 
 import static com.example.skill_management.Enum.Role.ADMIN;
-import static org.springframework.http.HttpMethod.*;
-import static org.springframework.security.config.http.SessionCreationPolicy.STATELESS;
 
 @Configuration
-@EnableWebSecurity
-@RequiredArgsConstructor
 @EnableMethodSecurity
+@RequiredArgsConstructor
 public class SecurityConfiguration {
 
-    private static final String[] WHITE_LIST_URL = {"/skill-management/auth/**",
+    private static final String[] WHITE_LIST_URL = {
+            "/skill-management/auth/**",
             "/v2/api-docs",
             "/v3/api-docs",
             "/v3/api-docs/**",
@@ -34,33 +28,33 @@ public class SecurityConfiguration {
             "/configuration/security",
             "/swagger-ui/**",
             "/webjars/**",
-            "/swagger-ui.html"};
-    private final JwtAuthenticationFilter jwtAuthFilter;
-    private final AuthenticationProvider authenticationProvider;
-    private final LogoutHandler logoutHandler;
+            "/swagger-ui.html"
+    };
+
+    private final JwtAuthenticationFilter jwtAuthWebFilter;
+    private final ReactiveAuthenticationManager reactiveAuthenticationManager;
+    private final ServerLogoutHandler reactiveLogoutHandler;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(req ->
-                        req.requestMatchers(WHITE_LIST_URL)
-                                .permitAll()
-                                .requestMatchers("/skill-management/user/**").hasAnyRole(ADMIN.name())
-
-                                .anyRequest()
-                                .authenticated()
+    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
+        return http
+                .csrf(ServerHttpSecurity.CsrfSpec::disable)
+                .authorizeExchange(exchanges -> exchanges
+                        .pathMatchers(WHITE_LIST_URL).permitAll()
+                        .pathMatchers("/skill-management/user/**").hasRole(ADMIN.name())
+                        .anyExchange().authenticated()
                 )
-                .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
-                .authenticationProvider(authenticationProvider)
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                .logout(logout ->
-                        logout.logoutUrl("/skill-management/auth/logout")
-                                .addLogoutHandler(logoutHandler)
-                                .logoutSuccessHandler((request, response, authentication) -> SecurityContextHolder.clearContext())
-                )
-        ;
+                .authenticationManager(reactiveAuthenticationManager)
+                .addFilterAt(jwtAuthWebFilter, SecurityWebFiltersOrder.AUTHENTICATION)
+                .logout(logout -> logout
+                        .logoutUrl("/skill-management/auth/logout")
+                        .logoutHandler(reactiveLogoutHandler)
 
-        return http.build();
+                        .logoutSuccessHandler((exchange, authentication) ->
+
+                                reactor.core.publisher.Mono.empty()
+                        )
+                )
+                .build();
     }
 }

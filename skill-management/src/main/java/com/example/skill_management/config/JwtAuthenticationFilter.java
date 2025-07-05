@@ -1,81 +1,74 @@
 package com.example.skill_management.config;
 
-
 import com.example.skill_management.token.TokenRepository;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.lang.NonNull;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
-import org.springframework.stereotype.Component;
-import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.ReactiveUserDetailsService;
 
-import java.io.IOException;
+import org.springframework.stereotype.Component;
+import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.WebFilter;
+import org.springframework.web.server.WebFilterChain;
+import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
-public class JwtAuthenticationFilter extends OncePerRequestFilter {
+public class JwtAuthenticationFilter implements WebFilter {
 
   private final JwtService jwtService;
-  private final UserDetailsService userDetailsService;
+  private final ReactiveUserDetailsService userDetailsService;
   private final TokenRepository tokenRepository;
 
   @Override
-  protected void doFilterInternal(
-      @NonNull HttpServletRequest request,
-      @NonNull HttpServletResponse response,
-      @NonNull FilterChain filterChain
-  ) throws ServletException, IOException {
-    if (request.getServletPath().contains("/skill-management/auth")) {
-      filterChain.doFilter(request, response);
-      return;
-    }
-    final String authHeader = request.getHeader("Authorization");
-    final String jwt;
-    final String userEmail;
-    if (authHeader == null ||!authHeader.startsWith("Bearer ")) {
-      filterChain.doFilter(request, response);
-      return;
-    }
-    jwt = authHeader.substring(7);
-    userEmail = jwtService.extractUsername(jwt);
-    if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-      UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
-      var isTokenValid = tokenRepository.findByToken(jwt)
-          .map(t -> !t.isExpired() && !t.isRevoked())
-          .orElse(false);
-      if (jwtService.isTokenValid(jwt, userDetails) && isTokenValid) {
-        /*UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-            userDetails,
-            null,
-            userDetails.getAuthorities()
-        );*/
-        // Extraire authorities depuis le JWT
-        var claims = jwtService.extractAllClaims(jwt);
-        var authoritiesFromToken = claims.get("authorities", java.util.List.class);
-        var authorities = authoritiesFromToken.stream()
-                .map(authority -> new org.springframework.security.core.authority.SimpleGrantedAuthority((String) authority))
-                .toList();
+  public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
 
+    String path = exchange.getRequest().getURI().getPath();
 
-        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                userDetails,
-                null,
-                authorities
-        );
-
-        authToken.setDetails(
-            new WebAuthenticationDetailsSource().buildDetails(request)
-        );
-        SecurityContextHolder.getContext().setAuthentication(authToken);
-      }
+    if (path.contains("/skill-management/auth")) {
+      // Skip auth paths
+      return chain.filter(exchange);
     }
-    filterChain.doFilter(request, response);
+
+    List<String> authHeaders = exchange.getRequest().getHeaders().get(HttpHeaders.AUTHORIZATION);
+    if (authHeaders == null || authHeaders.isEmpty() || !authHeaders.get(0).startsWith("Bearer ")) {
+      return chain.filter(exchange);
+    }
+
+    String jwt = authHeaders.get(0).substring(7);
+    String userEmail = jwtService.extractUsername(jwt);
+
+    if (userEmail == null) {
+      return chain.filter(exchange);
+    }
+
+    return userDetailsService.findByUsername(userEmail)
+            .flatMap(userDetails -> tokenRepository.findByToken(jwt)
+                    .filter(token -> !token.isExpired() && !token.isRevoked())
+                    .flatMap(token -> {
+                      if (!jwtService.isTokenValid(jwt, userDetails)) {
+                        return Mono.empty();
+                      }
+
+                      var claims = jwtService.extractAllClaims(jwt);
+                      List<String> authoritiesFromToken = claims.get("authorities", List.class);
+                      var authorities = authoritiesFromToken.stream()
+                              .map(SimpleGrantedAuthority::new)
+                              .collect(Collectors.toList());
+
+                      UsernamePasswordAuthenticationToken authToken =
+                              new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
+
+                      // Set the authentication in the security context
+                      return chain.filter(exchange)
+                              .contextWrite(ctx ->
+                                      org.springframework.security.core.context.ReactiveSecurityContextHolder.withAuthentication(authToken)
+                              );
+                    }))
+            .switchIfEmpty(chain.filter(exchange));
   }
 }

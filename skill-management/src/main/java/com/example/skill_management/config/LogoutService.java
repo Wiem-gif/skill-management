@@ -1,40 +1,35 @@
 package com.example.skill_management.config;
 
-
 import com.example.skill_management.token.TokenRepository;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.logout.LogoutHandler;
-import org.springframework.stereotype.Service;
+import org.springframework.security.web.server.WebFilterExchange;
+import org.springframework.security.web.server.authentication.logout.ServerLogoutHandler;
+import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
 
-@Service
+@Component
 @RequiredArgsConstructor
-public class LogoutService implements LogoutHandler {
+public class LogoutService implements ServerLogoutHandler {
 
-  private final TokenRepository tokenRepository;
+    private final TokenRepository tokenRepository;
 
-  @Override
-  public void logout(
-      HttpServletRequest request,
-      HttpServletResponse response,
-      Authentication authentication
-  ) {
-    final String authHeader = request.getHeader("Authorization");
-    final String jwt;
-    if (authHeader == null ||!authHeader.startsWith("Bearer ")) {
-      return;
+    @Override
+    public Mono<Void> logout(WebFilterExchange exchange, Authentication authentication) {
+        String authHeader = exchange.getExchange().getRequest().getHeaders().getFirst("Authorization");
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return Mono.empty();
+        }
+
+        String jwt = authHeader.substring(7);
+
+        return tokenRepository.findByToken(jwt)
+                .flatMap(storedToken -> {
+                    storedToken.setExpired(true);
+                    storedToken.setRevoked(true);
+                    return tokenRepository.save(storedToken);
+                })
+                .then();
     }
-    jwt = authHeader.substring(7);
-    var storedToken = tokenRepository.findByToken(jwt)
-        .orElse(null);
-    if (storedToken != null) {
-      storedToken.setExpired(true);
-      storedToken.setRevoked(true);
-      tokenRepository.save(storedToken);
-      SecurityContextHolder.clearContext();
-    }
-  }
 }

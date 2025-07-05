@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/skill-management/user")
@@ -17,17 +18,16 @@ public class UserController {
 
     @PostMapping
     @PreAuthorize("hasAuthority('write_user')")
-    public String createUser(@RequestBody CreateUserRequest request, Authentication authentication) {
+    public Mono<String> createUser(@RequestBody CreateUserRequest request, Authentication authentication) {
         String createdBy = authentication.getName();
-        userService.createUser(request, createdBy);
-        return "User created successfully";
+        return userService.createUser(request, createdBy)
+                .thenReturn("User created successfully");
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('delete_user')")
-    public ResponseEntity<Void> deleteUser(@PathVariable Integer id) {
-        userService.deleteUser(id);
-        return ResponseEntity.noContent().build(); // 204
+    public Mono<ResponseEntity<Void>> deleteUser(@PathVariable Integer id) {
+        return userService.deleteUser(id)
+                .then(Mono.just(ResponseEntity.noContent().build())); // 204
     }
 }
-
