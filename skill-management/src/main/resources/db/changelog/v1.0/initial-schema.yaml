@@ -8,11 +8,10 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: BIGINT
+                  type: BIGSERIAL
                   constraints:
                     primaryKey: true
                     nullable: false
-                  autoIncrement: true
               - column:
                   name: firstname
                   type: VARCHAR(50)
@@ -62,3 +61,47 @@ databaseChangeLog:
                   defaultValueBoolean: false
                   constraints:
                     nullable: true
+
+  - changeSet:
+      id: 2
+      author: Wiem
+      changes:
+        - createTable:
+            tableName: token
+            columns:
+              - column:
+                  name: id
+                  type: BIGSERIAL
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: token
+                  type: VARCHAR(500)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: token_type
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: revoked
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expired
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_token_user
+                    referencedTableName: users
+                    referencedColumnNames: id

@@ -3,7 +3,6 @@ package com.example.skill_management.config;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
@@ -32,7 +31,6 @@ public class SecurityConfiguration {
     };
 
     private final JwtAuthenticationFilter jwtAuthWebFilter;
-    private final ReactiveAuthenticationManager reactiveAuthenticationManager;
     private final ServerLogoutHandler reactiveLogoutHandler;
 
     @Bean
@@ -41,19 +39,14 @@ public class SecurityConfiguration {
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers(WHITE_LIST_URL).permitAll()
-                        .pathMatchers("/skill-management/user/**").hasRole(ADMIN.name())
+                        .pathMatchers("/skill-management/user/**").hasRole(ADMIN.name()) // equiv: hasAuthority("ROLE_ADMIN")
                         .anyExchange().authenticated()
                 )
-                .authenticationManager(reactiveAuthenticationManager)
                 .addFilterAt(jwtAuthWebFilter, SecurityWebFiltersOrder.AUTHENTICATION)
                 .logout(logout -> logout
                         .logoutUrl("/skill-management/auth/logout")
                         .logoutHandler(reactiveLogoutHandler)
-
-                        .logoutSuccessHandler((exchange, authentication) ->
-
-                                reactor.core.publisher.Mono.empty()
-                        )
+                        .logoutSuccessHandler((exchange, authentication) -> reactor.core.publisher.Mono.empty())
                 )
                 .build();
     }

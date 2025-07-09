@@ -1,12 +1,26 @@
 spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/skill_management
+    username: postgres
+    password: Telnet*1234
+
+
   r2dbc:
     url: r2dbc:postgresql://localhost:5432/skill_management
     username: postgres
     password: Telnet*1234
 
-  sql:
-    init:
-      mode: always
+  liquibase:
+    enabled: true
+    url: jdbc:postgresql://localhost:5432/skill_management
+    user: postgres
+    password: Telnet*1234
+    change-log: classpath:/db/changelog/db.changelog-master.yaml
+    driver-class-name: org.postgresql.Driver
+
+logging:
+  level:
+    liquibase: DEBUG
 
 application:
   security:
