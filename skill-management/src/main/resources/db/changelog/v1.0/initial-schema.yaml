@@ -105,3 +105,70 @@ databaseChangeLog:
                     foreignKeyName: fk_token_user
                     referencedTableName: users
                     referencedColumnNames: id
+
+  - changeSet:
+        id: 3
+        author: Wiem
+        changes:
+          - createTable:
+              tableName: role
+              columns:
+                - column:
+                    name: id
+                    type: BIGSERIAL
+                    constraints:
+                      primaryKey: true
+                      nullable: false
+                - column:
+                    name: name
+                    type: VARCHAR(50)
+                    constraints:
+                      nullable: false
+                      unique: true
+                - column:
+                    name: permissions
+                    type: TEXT
+                    constraints:
+                      nullable: false
+
+  - changeSet:
+        id: 4
+        author: Wiem
+        changes:
+          - insert:
+              tableName: role
+              columns:
+                - column:
+                    name: name
+                    value: USER
+                - column:
+                    name: permissions
+                    value: read_user
+          - insert:
+              tableName: role
+              columns:
+                - column:
+                    name: name
+                    value: ADMIN
+                - column:
+                    name: permissions
+                    value: read_user,write_user,delete_user
+          - insert:
+              tableName: role
+              columns:
+                - column:
+                    name: name
+                    value: TechnicalManager
+                - column:
+                    name: permissions
+                    value: ""
+          - insert:
+              tableName: role
+              columns:
+                - column:
+                    name: name
+                    value: QualityManager
+                - column:
+                    name: permissions
+                    value: ""
+
