@@ -13,6 +13,12 @@ import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
 import java.util.Map;
+/**
+ * Controller for managing user-related endpoints:
+ * - Create user
+ * - Delete user
+
+ */
 
 @RestController
 @RequestMapping("/skill-management/user")
