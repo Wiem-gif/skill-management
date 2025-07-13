@@ -3,11 +3,16 @@ package com.example.skill_management.demo;
 import com.example.skill_management.dto.CreateUserRequest;
 import com.example.skill_management.service.UserService;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
 import reactor.core.publisher.Mono;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/skill-management/user")
@@ -26,8 +31,13 @@ public class UserController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('delete_user')")
-    public Mono<ResponseEntity<Void>> deleteUser(@PathVariable Integer id) {
+    public Mono<ResponseEntity<Map<String, Object>>> deleteUser(@PathVariable Integer id) {
         return userService.deleteUser(id)
-                .then(Mono.just(ResponseEntity.noContent().build())); // 204
+                .then(Mono.fromSupplier(() -> {
+                    Map<String, Object> response = new HashMap<>();
+                    response.put("status", "success");
+                    response.put("message", "User deleted successfully");
+                    return ResponseEntity.ok(response);
+                }));
     }
 }

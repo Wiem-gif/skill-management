@@ -67,8 +67,7 @@ public class JwtAuthenticationFilter implements WebFilter {
                                             .contextWrite(ReactiveSecurityContextHolder.withSecurityContext(
                                                     Mono.just(new SecurityContextImpl(authToken))
                                             ));
-                                    //return chain.filter(exchange)
-                                           // .contextWrite(ctx -> ReactiveSecurityContextHolder.withAuthentication(authToken));
+
                                 })
                 )
 
