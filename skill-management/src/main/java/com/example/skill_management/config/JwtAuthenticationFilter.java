@@ -30,7 +30,7 @@ public class JwtAuthenticationFilter implements WebFilter {
 
         String path = exchange.getRequest().getURI().getPath();
 
-        // On skip les endpoints d'authentification
+
         if (path.contains("/skill-management/auth")) {
             return chain.filter(exchange);
         }

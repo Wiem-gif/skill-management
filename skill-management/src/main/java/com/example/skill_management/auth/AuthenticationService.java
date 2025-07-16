@@ -23,26 +23,7 @@ public class AuthenticationService {
   private final PasswordEncoder passwordEncoder;
   private final JwtService jwtService;
 
-  public Mono<AuthenticationResponse> register(RegisterRequest request) {
-    User user = User.builder()
-            .firstname(request.getFirstname())
-            .lastname(request.getLastname())
-            .email(request.getEmail())
-            .password(passwordEncoder.encode(request.getPassword()))
-            .role(request.getRole())
-            .build();
 
-    return repository.save(user)
-            .flatMap(savedUser -> {
-              String jwtToken = jwtService.generateToken(savedUser);
-              String refreshToken = jwtService.generateRefreshToken(savedUser);
-              return saveUserToken(savedUser, jwtToken)
-                      .thenReturn(AuthenticationResponse.builder()
-                              .accessToken(jwtToken)
-                              .refreshToken(refreshToken)
-                              .build());
-            });
-  }
 
   public Mono<AuthenticationResponse> authenticate(AuthenticationRequest request) {
     return repository.findByEmail(request.getEmail())

@@ -14,13 +14,7 @@ public class AuthenticationController {
 
   private final AuthenticationService service;
 
-  @PostMapping("/register")
-  public Mono<ResponseEntity<AuthenticationResponse>> register(
-          @RequestBody RegisterRequest request
-  ) {
-    return service.register(request)
-            .map(ResponseEntity::ok);
-  }
+
 
   @PostMapping("/login")
   public Mono<ResponseEntity<AuthenticationResponse>> authenticate(
