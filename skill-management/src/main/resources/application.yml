@@ -22,6 +22,9 @@ logging:
   level:
     liquibase: DEBUG
 
+
+
+
 application:
   security:
     jwt:

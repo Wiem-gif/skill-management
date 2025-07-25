@@ -37,7 +37,6 @@ public class UserController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('delete_user')")
-
     public Mono<ResponseEntity<Map<String, Object>>> deleteUser(@PathVariable Integer id) {
         return userService.deleteUser(id)
                 .then(Mono.fromSupplier(() -> {

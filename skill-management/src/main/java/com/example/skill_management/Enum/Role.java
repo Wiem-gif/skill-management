@@ -18,7 +18,10 @@ public enum Role {
     ADMIN(Set.of(
             Permission.WRITE_USER,
             Permission.DELETE_USER,
-            Permission.READ_USER
+            Permission.READ_USER,
+            Permission.WRITE_EMPLOYEE,
+            Permission.UPDATE_EMPLOYEE,
+            Permission.DELETE_EMPLOYEE
     )),
 
     TechnicalManager(Set.of(

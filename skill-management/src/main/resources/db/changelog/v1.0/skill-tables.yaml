@@ -1,0 +1,123 @@
+databaseChangeLog:
+
+  - changeSet:
+      id: 6
+      author: Wiem
+      changes:
+        - createTable:
+            tableName: skill_category
+            columns:
+              - column:
+                  name: id
+                  type: BIGSERIAL
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+
+  - changeSet:
+      id: 7
+      author: Wiem
+      changes:
+        - createTable:
+            tableName: skill
+            columns:
+              - column:
+                  name: id
+                  type: BIGSERIAL
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: skill_category_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: description
+                  type: TEXT
+                  constraints:
+                    nullable: true
+        - addForeignKeyConstraint:
+            baseTableName: skill
+            baseColumnNames: skill_category_id
+            referencedTableName: skill_category
+            referencedColumnNames: id
+            constraintName: fk_skill_category
+
+  - changeSet:
+      id: 8
+      author: Wiem
+      changes:
+        - createTable:
+            tableName: grade
+            columns:
+              - column:
+                  name: id
+                  type: BIGSERIAL
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: category
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: code
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+                    unique: true
+
+  - changeSet:
+      id: 9
+      author: Wiem
+      changes:
+        - createTable:
+            tableName: employee_skill
+            columns:
+              - column:
+                  name: id
+                  type: BIGSERIAL
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: employee_matricule
+                  type: VARCHAR(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: skill_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: current_level
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: employee_skill
+            baseColumnNames: employee_matricule
+            referencedTableName: employee
+            referencedColumnNames: matricule
+            constraintName: fk_employee_skill_employee
+        - addForeignKeyConstraint:
+            baseTableName: employee_skill
+            baseColumnNames: skill_id
+            referencedTableName: skill
+            referencedColumnNames: id
+            constraintName: fk_employee_skill_skill

@@ -3,3 +3,7 @@ databaseChangeLog:
       file: db/changelog/v1.0/initial-schema.yaml
   - include:
       file: db/changelog/v1.0/insert-admin-user.yaml
+  - include:
+      file: db/changelog/v1.0/employee-table.yaml
+  - include:
+      file: db/changelog/v1.0/skill-tables.yaml

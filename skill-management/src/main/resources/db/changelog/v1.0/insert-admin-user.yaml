@@ -1,0 +1,8 @@
+databaseChangeLog:
+  - changeSet:
+      id: insert-admin-user
+      author: Wiem
+      changes:
+        - sqlFile:
+            path: db/sql/insert_admin_user.sql
+            relativeToChangelogFile: false
