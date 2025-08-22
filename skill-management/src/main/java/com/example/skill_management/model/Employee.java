@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
+import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
@@ -42,8 +43,9 @@ public class Employee {
     @Column("activity")
     private String activity;
 
-    @Column("grade")
-    private String grade;
+    @Column("grade_id")
+    private Long gradeId;
+
 
     @Column("function")
     private String function;
@@ -65,4 +67,12 @@ public class Employee {
 
     @Column("status")
     private String status;
+
+    @Column("job_title_id")
+    private Long jobTitleId;
+    @Id
+    @Column("id")
+    private Long id;
+
+
 }

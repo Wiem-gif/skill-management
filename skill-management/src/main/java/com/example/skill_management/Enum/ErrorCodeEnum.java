@@ -30,7 +30,12 @@ public enum ErrorCodeEnum {
 
     // Format/Validation errors
     SMGT_EMPLOYEE_INVALID_EMAIL("SMGT-0019", "Invalid email format", HttpStatus.BAD_REQUEST),
-    SMGT_EMPLOYEE_INVALID_STATUS("SMGT-0020", "Invalid status (allowed values: ACTIVE, INACTIVE, ON_LEAVE)", HttpStatus.BAD_REQUEST);
+    SMGT_EMPLOYEE_INVALID_STATUS("SMGT-0020", "Invalid status (allowed values: ACTIVE, INACTIVE, ON_LEAVE)", HttpStatus.BAD_REQUEST),
+    SMGT_JOBTITLE_NOT_FOUND("SMGT-0021", "Job title not found", HttpStatus.NOT_FOUND),
+    SMGT_GRADE_NOT_FOUND("SMGT-0022", "Grade not found", HttpStatus.NOT_FOUND),
+    SMGT_EMPLOYEE_NOT_FOUND("SMGT-0023", "Employee not found",HttpStatus.NOT_FOUND),
+    SMGT_SKILL_NOT_FOUND("SMGT-0024", "Skill not found",HttpStatus.NOT_FOUND);
+
 
     private final String code;
     private final String message;

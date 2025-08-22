@@ -21,7 +21,10 @@ public enum Role {
             Permission.READ_USER,
             Permission.WRITE_EMPLOYEE,
             Permission.UPDATE_EMPLOYEE,
-            Permission.DELETE_EMPLOYEE
+            Permission.DELETE_EMPLOYEE,
+            Permission.CREATE_CATEGORY,
+            Permission.DELETE_GRADE,
+            Permission.IMPORT_EMPLOYEE
     )),
 
     TechnicalManager(Set.of(

@@ -9,7 +9,9 @@ import io.swagger.v3.oas.annotations.info.License;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import io.swagger.v3.oas.annotations.servers.Server;
-
+import io.swagger.v3.oas.models.media.Encoding;
+import org.springdoc.core.customizers.OpenApiCustomizer;
+import org.springframework.context.annotation.Bean;
 
 @OpenAPIDefinition(
         info = @Info(
@@ -52,4 +54,28 @@ import io.swagger.v3.oas.annotations.servers.Server;
         in = SecuritySchemeIn.HEADER
 )
 public class OpenApiConfig {
+
+    @Bean
+    public OpenApiCustomizer fileUploadAcceptCustomizer() {
+        return openApi -> openApi.getPaths().forEach((path, pathItem) ->
+                pathItem.readOperations().forEach(operation -> {
+                    if (operation.getRequestBody() != null &&
+                            operation.getRequestBody().getContent().containsKey("multipart/form-data")) {
+
+                        var mediaType = operation.getRequestBody()
+                                .getContent()
+                                .get("multipart/form-data");
+
+                        if (mediaType.getEncoding() == null) {
+                            mediaType.setEncoding(new java.util.LinkedHashMap<>());
+                        }
+
+                        Encoding encoding = new Encoding();
+                        encoding.addExtension("x-accept", ".xlsx,.xls");
+
+                        mediaType.getEncoding().put("file", encoding);
+                    }
+                })
+        );
+    }
 }

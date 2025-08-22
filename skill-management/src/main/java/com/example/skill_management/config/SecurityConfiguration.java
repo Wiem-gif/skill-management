@@ -22,6 +22,11 @@ public class SecurityConfiguration {
 
     private static final String[] WHITE_LIST_URL = {
             "/skill-management/auth/**",
+            "/employee-skills/**",
+            "/skill-category/**",
+            "/job-titles/**",
+            "/skills/**",
+            "/grades/**",
             "/v2/api-docs",
             "/v3/api-docs",
             "/v3/api-docs/**",
@@ -57,7 +62,8 @@ public class SecurityConfiguration {
     @Bean
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration config = new CorsConfiguration();
-        config.addAllowedOrigin("*");
+//        config.addAllowedOrigin("*");
+        config.addAllowedOriginPattern("*");
         config.addAllowedMethod("*");
         config.addAllowedHeader("*");
         config.setAllowCredentials(true);

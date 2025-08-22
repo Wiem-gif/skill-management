@@ -98,3 +98,80 @@ databaseChangeLog:
                   defaultValue: "Active"
                   constraints:
                     nullable: false
+
+
+
+  - changeSet:
+        id: add-id-column-to-employee
+        author: Wiem
+        changes:
+          - addColumn:
+              tableName: employee
+              columns:
+                - column:
+                    name: id
+                    type: BIGSERIAL
+                    constraints:
+                      nullable: true
+
+
+
+  - changeSet:
+        id: change-pk-to-id
+        author: Wiem
+        changes:
+          # Supprimer la PK sur matricule
+          - dropPrimaryKey:
+              tableName: employee
+
+          # Ajouter PK sur id
+          - addPrimaryKey:
+              tableName: employee
+              columnNames: id
+              constraintName: pk_employee_id
+
+          # Ajouter contrainte unique sur matricule
+          - addUniqueConstraint:
+              tableName: employee
+              columnNames: matricule
+              constraintName: uq_employee_matricule
+
+          # Rendre id obligatoire
+          - addNotNullConstraint:
+              tableName: employee
+              columnName: id
+              columnDataType: BIGINT
+  - changeSet:
+      id: rename-grade-column
+      author: Wiem
+      changes:
+        # 1. Renommer la colonne grade en grade_id
+        - renameColumn:
+            tableName: employee
+            oldColumnName: grade
+            newColumnName: grade_id
+            columnDataType: VARCHAR(50)
+
+        # 2. Modifier le type de la colonne grade_id en BIGINT
+        - modifyDataType:
+            tableName: employee
+            columnName: grade_id
+            newDataType: BIGINT
+
+        # 3. Ajouter la contrainte FK vers grade(id)
+        - addForeignKeyConstraint:
+            baseTableName: employee
+            baseColumnNames: grade_id
+            referencedTableName: grade
+            referencedColumnNames: id
+            constraintName: fk_employee_grade
+
+  - changeSet:
+      id: make-id-not-null
+      author: Wiem
+      changes:
+        - addNotNullConstraint:
+            tableName: employee
+            columnName: id
+            columnDataType: BIGINT
+

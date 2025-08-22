@@ -14,4 +14,9 @@ public abstract class ApiException extends RuntimeException {
         this.code = errorCodeEnum.getCode();
         this.httpStatus = errorCodeEnum.getHttpStatus().value();
     }
+    protected ApiException(ErrorCodeEnum errorCodeEnum, String customMessage) {
+        super(customMessage);
+        this.code = errorCodeEnum.getCode();
+        this.httpStatus = errorCodeEnum.getHttpStatus().value();
+    }
 }

@@ -1,13 +1,17 @@
 package com.example.skill_management.dto;
 
-
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @AllArgsConstructor
-public class EmployeeImportResult {
-    private int rowNumber;
+@NoArgsConstructor
+@Builder
+public class SavedItem {
+    private int row;
     private String employeeMatricule;
-    private String error;
+    private String skillName;
 }
+

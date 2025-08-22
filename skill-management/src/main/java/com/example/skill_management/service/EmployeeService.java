@@ -5,6 +5,8 @@ import com.example.skill_management.exception.*;
 import com.example.skill_management.model.Employee;
 import com.example.skill_management.Enum.ErrorCodeEnum;
 import com.example.skill_management.repository.EmployeeRepository;
+import com.example.skill_management.repository.GradeRepository;
+import com.example.skill_management.repository.JobTitleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -27,6 +29,8 @@ import java.util.List;
 public class EmployeeService {
 
     private final EmployeeRepository employeeRepository;
+    private final JobTitleRepository jobTitleRepository;
+    private final GradeRepository gradeRepository;
 
     public Mono<Employee> createEmployee(Employee employee) {
         validateEmployee(employee);
@@ -46,7 +50,7 @@ public class EmployeeService {
                 .cin(employee.getCin())
                 .email(employee.getEmail())
                 .activity(employee.getActivity())
-                .grade(employee.getGrade())
+                .gradeId(employee.getGradeId())
                 .function(employee.getFunction())
                 .previousExperience(employee.getPreviousExperience())
                 .hierarchicalHead(employee.getHierarchicalHead())
@@ -54,6 +58,7 @@ public class EmployeeService {
                 .contractType(employee.getContractType())
                 .contractEnd(employee.getContractEnd())
                 .status(employee.getStatus())
+                .jobTitleId(employee.getJobTitleId())
                 .build();
     }
 
@@ -95,7 +100,7 @@ public class EmployeeService {
     }
 
     private Mono<Void> checkDuplicate(Employee employee) {
-        return employeeRepository.findByMatricule(employee.getMatricule())
+        return employeeRepository.findByMatriculeIgnoreCase(employee.getMatricule())
                 .flatMap(existing -> Mono.error(new DuplicateMatriculeException(ErrorCodeEnum.SMGT_EMPLOYEE_DUPLICATE_MATRICULE)))
                 .switchIfEmpty(employeeRepository.findByEmail(employee.getEmail())
                         .flatMap(existing -> Mono.error(new DuplicateEmailException(ErrorCodeEnum.SMGT_EMPLOYEE_DUPLICATE_EMAIL))))
@@ -104,16 +109,14 @@ public class EmployeeService {
                 .then();
     }
 
+    // --------------------- IMPORT EMPLOYEES ---------------------
     public Flux<EmployeeImportResult> importEmployees(FilePart filePart) {
         return DataBufferUtils.join(filePart.content())
                 .flatMapMany(dataBuffer -> {
                     byte[] bytes = new byte[dataBuffer.readableByteCount()];
                     dataBuffer.read(bytes);
                     DataBufferUtils.release(dataBuffer);
-
-                    return Mono.fromCallable(() -> parseWorkbook(bytes))
-                            .subscribeOn(Schedulers.boundedElastic())
-                            .flatMapMany(Flux::fromIterable);
+                    return parseWorkbookReactive(bytes);
                 })
                 .index()
                 .flatMap(tuple -> {
@@ -121,36 +124,56 @@ public class EmployeeService {
                     Employee employee = tuple.getT2();
 
                     return createEmployee(employee)
-                            .map(saved -> new EmployeeImportResult((int) rowIndex, saved, null))
+                            .map(saved -> new EmployeeImportResult((int) rowIndex, saved.getMatricule(), null))
                             .onErrorResume(ApiException.class, e ->
-                                    Mono.just(new EmployeeImportResult((int) rowIndex, null, e.getMessage()))
+                                    Mono.just(new EmployeeImportResult((int) rowIndex, employee.getMatricule(), e.getMessage()))
                             );
+
                 });
     }
 
-    private List<Employee> parseWorkbook(byte[] bytes) {
-        List<Employee> employees = new ArrayList<>();
-        try (InputStream inputStream = new ByteArrayInputStream(bytes);
-             Workbook workbook = WorkbookFactory.create(inputStream)) {
+    private Flux<Employee> parseWorkbookReactive(byte[] bytes) {
+        return Mono.fromCallable(() -> {
+                    List<Employee> employees = new ArrayList<>();
+                    try (InputStream inputStream = new ByteArrayInputStream(bytes);
+                         Workbook workbook = WorkbookFactory.create(inputStream)) {
 
-            Sheet sheet = workbook.getSheetAt(0);
-            int lastRowNum = sheet.getLastRowNum();
+                        Sheet sheet = workbook.getSheetAt(0);
+                        int lastRowNum = sheet.getLastRowNum();
 
-            for (int i = 1; i <= lastRowNum; i++) {
-                Row row = sheet.getRow(i);
-                if (row == null || isRowEmpty(row)) continue;
+                        for (int i = 1; i <= lastRowNum; i++) {
+                            Row row = sheet.getRow(i);
+                            if (row == null || isRowEmpty(row)) continue;
 
-                try {
-                    Employee employee = mapRowToEmployee(row);
-                    employees.add(employee);
-                } catch (Exception e) {
-                    log.warn("Skipping row {} due to parse error: {}", i + 1, e.getMessage());
-                }
-            }
-        } catch (Exception e) {
-            log.error("Failed to parse workbook: {}", e.getMessage(), e);
-        }
-        return employees;
+                            String jobTitleName = getStringCellValue(row.getCell(16));
+                            String gradeCode = getStringCellValue(row.getCell(8));
+
+                            Long jobTitleId = jobTitleRepository.findByName(jobTitleName)
+                                    .map(jt -> jt.getId())
+                                    .block();
+
+                            if (jobTitleId == null) {
+                                throw new JobTitleNotFoundException(jobTitleName);
+                            }
+                            Long gradeId = gradeRepository.findByCode(gradeCode)
+                                    .map(g -> g.getId())
+                                    .block();
+
+                            if (gradeId == null) {
+                                throw new GradeNotFoundException(gradeCode);
+                            }
+
+                            Employee employee = mapRowToEmployee(row, jobTitleId, gradeId);
+                            employees.add(employee);
+                        }
+                    } catch (Exception e) {
+                        log.error("Failed to parse workbook: {}", e.getMessage(), e);
+                        throw new RuntimeException("Failed to parse workbook", e);
+                    }
+                    return employees;
+                })
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMapMany(Flux::fromIterable);
     }
 
     private boolean isRowEmpty(Row row) {
@@ -166,7 +189,7 @@ public class EmployeeService {
         return true;
     }
 
-    private Employee mapRowToEmployee(Row row) {
+    private Employee mapRowToEmployee(Row row, Long jobTitleId, Long gradeId) {
         return Employee.builder()
                 .matricule(getStringCellValue(row.getCell(0)))
                 .firstname(getStringCellValue(row.getCell(1)))
@@ -176,7 +199,7 @@ public class EmployeeService {
                 .cin(getStringCellValue(row.getCell(5)))
                 .email(getStringCellValue(row.getCell(6)))
                 .activity(getStringCellValue(row.getCell(7)))
-                .grade(getStringCellValue(row.getCell(8)))
+                .gradeId(gradeId)
                 .function(getStringCellValue(row.getCell(9)))
                 .previousExperience(getNumericCellValue(row.getCell(10)))
                 .hierarchicalHead(getStringCellValue(row.getCell(11)))
@@ -184,6 +207,7 @@ public class EmployeeService {
                 .contractType(getStringCellValue(row.getCell(13)))
                 .contractEnd(getDateCellValue(row.getCell(14)))
                 .status(getStringCellValue(row.getCell(15)))
+                .jobTitleId(jobTitleId)
                 .build();
     }
 
@@ -191,7 +215,13 @@ public class EmployeeService {
         if (cell == null) return null;
         return switch (cell.getCellType()) {
             case STRING -> cell.getStringCellValue().trim();
-            case NUMERIC -> String.valueOf((long) cell.getNumericCellValue());
+            case NUMERIC -> {
+                if (DateUtil.isCellDateFormatted(cell)) {
+                    yield cell.getLocalDateTimeCellValue().toLocalDate().toString();
+                } else {
+                    yield String.valueOf((long) cell.getNumericCellValue());
+                }
+            }
             case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
             case FORMULA -> {
                 try {
@@ -239,4 +269,12 @@ public class EmployeeService {
         }
         return null;
     }
+
+    public Mono<Employee> findByFirstnameAndLastname(String firstname, String lastname) {
+        return employeeRepository.findByFirstnameAndLastname(firstname, lastname)
+                .switchIfEmpty(Mono.error(
+                        new EmployeeNotFoundException(firstname, lastname)
+                ));
+    }
+
 }

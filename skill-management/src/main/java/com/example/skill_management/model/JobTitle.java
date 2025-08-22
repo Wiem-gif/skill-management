@@ -1,25 +1,20 @@
 package com.example.skill_management.model;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
-@Table("skill")
+@Table("job_title")
 @Data
-@NoArgsConstructor
 @AllArgsConstructor
+@NoArgsConstructor
 @Builder
-public class Skill {
+public class JobTitle {
     @Id
-    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private Long id;
-    @Column("skill_category_id")
-    private Long skillCategoryId;
     private String name;
     private String description;
 }

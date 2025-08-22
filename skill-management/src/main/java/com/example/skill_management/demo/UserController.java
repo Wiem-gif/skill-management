@@ -3,6 +3,7 @@ package com.example.skill_management.demo;
 import com.example.skill_management.dto.CreateUserRequest;
 import com.example.skill_management.exception.UserNotFoundException;
 import com.example.skill_management.service.UserService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +23,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/skill-management/user")
 @RequiredArgsConstructor
+@Tag(name = "User Management", description = "API to manage user")
 public class UserController {
 
     private final UserService userService;

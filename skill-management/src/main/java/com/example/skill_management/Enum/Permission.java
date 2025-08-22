@@ -11,7 +11,10 @@ public enum Permission {
     READ_USER("read_user"),
     WRITE_EMPLOYEE("write_employee"),
     UPDATE_EMPLOYEE("update_employee"),
-    DELETE_EMPLOYEE("delete_employee");
+    DELETE_EMPLOYEE("delete_employee"),
+    CREATE_CATEGORY("create_category"),
+    DELETE_GRADE("delete_grade"),
+    IMPORT_EMPLOYEE("import_employee");
 
     @Getter
     private final String permission;

@@ -121,3 +121,106 @@ databaseChangeLog:
             referencedTableName: skill
             referencedColumnNames: id
             constraintName: fk_employee_skill_skill
+  - changeSet:
+      id: 10
+      author: Wiem
+      changes:
+        - createTable:
+            tableName: job_title
+            columns:
+              - column:
+                  name: id
+                  type: BIGSERIAL
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: description
+                  type: TEXT
+                  constraints:
+                    nullable: true
+
+        - addColumn:
+            tableName: employee
+            columns:
+              - column:
+                  name: job_title_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+
+        - addForeignKeyConstraint:
+            baseTableName: employee
+            baseColumnNames: job_title_id
+            referencedTableName: job_title
+            referencedColumnNames: id
+            constraintName: fk_employee_job_title
+
+
+
+
+
+    # 2️⃣ Supprimer la colonne id
+  - changeSet:
+        id: drop-id-column-employee-skill
+        author: Wiem
+        changes:
+          - dropColumn:
+              tableName: employee_skill
+              columnName: id
+
+    # 3️⃣ Renommer employee_matricule en employee_id (BIGINT)
+  - changeSet:
+        id: rename-employee-matricule-to-id
+        author: Wiem
+        changes:
+          - renameColumn:
+              tableName: employee_skill
+              oldColumnName: employee_matricule
+              newColumnName: employee_id
+              columnDataType: BIGINT
+  - changeSet:
+      id: modify-employee_id-type
+      author: Wiem
+      changes:
+        - modifyDataType:
+            tableName: employee_skill
+            columnName: employee_id
+            newDataType: BIGINT
+
+
+    # 4️⃣ Mettre à jour la clé primaire
+  - changeSet:
+      id: change-pk-employee-skill
+      author: Wiem
+      changes:
+        - addPrimaryKey:
+            tableName: employee_skill
+            columnNames: employee_id, skill_id
+            constraintName: pk_employee_skill
+
+
+    # 5️⃣ Recréer les FK avec employee.id
+  - changeSet:
+        id: add-new-fk-employee-skill
+        author: Wiem
+        changes:
+          - addForeignKeyConstraint:
+              baseTableName: employee_skill
+              baseColumnNames: employee_id
+              referencedTableName: employee
+              referencedColumnNames: id
+              constraintName: fk_employee_skill_employee
+          - addForeignKeyConstraint:
+              baseTableName: employee_skill
+              baseColumnNames: skill_id
+              referencedTableName: skill
+              referencedColumnNames: id
+              constraintName: fk_employee_skill_skill
+
