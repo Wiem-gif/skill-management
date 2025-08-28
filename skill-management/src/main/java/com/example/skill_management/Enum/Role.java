@@ -12,7 +12,12 @@ import java.util.stream.Collectors;
 public enum Role {
 
     USER(Set.of(
-            Permission.READ_USER
+            Permission.READ_USER,
+            Permission.READ_EMPLOYEE_SKILL,
+            Permission.READ_GRADE,
+            Permission.READ_JOB_TITLE,
+            Permission.READ_SKILL,
+            Permission.READ_SKILL_CATEGORY
     )),
 
     ADMIN(Set.of(
@@ -24,14 +29,45 @@ public enum Role {
             Permission.DELETE_EMPLOYEE,
             Permission.CREATE_CATEGORY,
             Permission.DELETE_GRADE,
-            Permission.IMPORT_EMPLOYEE
+            Permission.IMPORT_EMPLOYEE,
+            Permission.IMPORT_EMPLOYEE_SKILL,
+            Permission.DELETE_EMPLOYEE_SKILL,
+            Permission.UPDATE_EMPLOYEE_SKILL,
+            Permission.READ_EMPLOYEE_SKILL,
+            Permission.UPDATE_SKILL,
+            Permission.READ_SKILL,
+            Permission.WRITE_SKILL,
+            Permission.DELETE_SKILL,
+            Permission.UPDATE_GRADE,
+            Permission.WRITE_GRADE,
+            Permission.READ_GRADE,
+            Permission.READ_JOB_TITLE,
+            Permission.WRITE_JOB_TITLE,
+            Permission.READ_EMPLOYEE,
+
+            Permission.DELETE_SKILL_CATEGORY,
+            Permission.READ_SKILL_CATEGORY
     )),
 
     TechnicalManager(Set.of(
+            Permission.READ_USER,
+            Permission.READ_EMPLOYEE,
+            Permission.READ_EMPLOYEE_SKILL,
+            Permission.READ_GRADE,
+            Permission.READ_JOB_TITLE,
+            Permission.READ_SKILL,
+            Permission.READ_SKILL_CATEGORY
 
     )),
 
     QualityManager(Set.of(
+            Permission.READ_USER,
+            Permission.READ_EMPLOYEE,
+            Permission.READ_EMPLOYEE_SKILL,
+            Permission.READ_GRADE,
+            Permission.READ_JOB_TITLE,
+            Permission.READ_SKILL,
+            Permission.READ_SKILL_CATEGORY
 
     ));
 

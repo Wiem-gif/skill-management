@@ -24,7 +24,15 @@ public interface EmployeeSkillRepository extends ReactiveCrudRepository<Employee
             "WHERE es.employee_id = e.id AND e.matricule = :matricule AND es.skill_id = :skillId")
     Mono<Integer> updateSkillLevelByMatricule(String matricule, Long skillId, String currentLevel);
     Mono<EmployeeSkill> findByEmployeeIdAndSkillId(Long employeeId, Long skillId);
+
+    @Modifying
+    @Query("DELETE FROM employee_skill WHERE employee_id = :employeeId")
     Mono<Void> deleteByEmployeeId(Long employeeId);
+
+    @Modifying
+    @Query("DELETE FROM employee_skill WHERE skill_id = :skillId")
+    Mono<Void> deleteBySkillId(Long skillId);
+
 
     // Recherche par skill
     Flux<EmployeeSkill> findBySkillId(Long skillId);

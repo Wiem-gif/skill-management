@@ -1,6 +1,7 @@
 package com.example.skill_management.demo;
 
 import com.example.skill_management.dto.EmployeeImportResult;
+import com.example.skill_management.dto.EmployeeUpdateRequest;
 import com.example.skill_management.exception.EmployeeNotFoundException;
 import com.example.skill_management.model.Employee;
 import com.example.skill_management.service.EmployeeService;
@@ -71,11 +72,11 @@ public class EmployeeController {
 
                     Map<String, Object> response = new LinkedHashMap<>();
                     response.put("status", "success");
-                    response.put("message", "Employee import completed");
+                    response.put("message", "Employees import completed");
                     response.put("totalRows", results.size());
-                    response.put("savedCount", saved.size());
+                    response.put("successCount", saved.size());
                     response.put("errorCount", errors.size());
-                    response.put("saved", saved);
+                    response.put("success", saved);
                     response.put("errors", errors);
 
                     return ResponseEntity.ok(response);
@@ -83,29 +84,108 @@ public class EmployeeController {
     }
 
 
-    @GetMapping("/search/by-name")
+//    @GetMapping("/search/by-name")
+//
+//    public Mono<ResponseEntity<Map<String, Object>>> getEmployeeByName(
+//            @RequestParam String firstname,
+//            @RequestParam String lastname) {
+//
+//        return employeeService.findByFirstnameAndLastname(firstname, lastname)
+//                .map(employee -> {
+//                    Map<String, Object> response = new LinkedHashMap<>();
+//                    response.put("status", "success");
+//                    response.put("id", employee.getId());
+//                    response.put("firstname", employee.getFirstname());
+//                    response.put("lastname", employee.getLastname());
+//                    return ResponseEntity.ok(response);
+//                })
+//                .onErrorResume(EmployeeNotFoundException.class, e -> {
+//                    Map<String, Object> error = new LinkedHashMap<>();
+//                    error.put("status", "error");
+//                    error.put("code", e.getCode());
+//                    error.put("message", e.getMessage());
+//                    return Mono.just(ResponseEntity.status(e.getHttpStatus()).body(error));
+//                });
+//    }
 
-    public Mono<ResponseEntity<Map<String, Object>>> getEmployeeByName(
-            @RequestParam String firstname,
-            @RequestParam String lastname) {
-
-        return employeeService.findByFirstnameAndLastname(firstname, lastname)
-                .map(employee -> {
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('delete_employee')")
+    public Mono<ResponseEntity<Map<String, Object>>> deleteEmployee(@PathVariable Long id) {
+        return employeeService.deleteEmployee(id)
+                .then(Mono.fromSupplier(() -> {
                     Map<String, Object> response = new LinkedHashMap<>();
                     response.put("status", "success");
-                    response.put("id", employee.getId());
-                    response.put("firstname", employee.getFirstname());
-                    response.put("lastname", employee.getLastname());
+                    response.put("message", "Employee and related skills deleted successfully");
                     return ResponseEntity.ok(response);
-                })
+                }))
+                .onErrorResume(EmployeeNotFoundException.class, e -> {
+                    Map<String, Object> error = new LinkedHashMap<>();
+                    error.put("status", "error");
+                    error.put("code", e.getCode());
+                    error.put("message", "Employee not found");
+                    return Mono.just(ResponseEntity.status(e.getHttpStatus()).body(error));
+                });
+    }
+
+    // 🔹 Mettre à jour un employé
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('update_employee')")
+    public Mono<ResponseEntity<Map<String, Object>>> updateEmployee(
+            @PathVariable Long id,
+            @RequestBody EmployeeUpdateRequest request) {
+
+        return employeeService.updateEmployee(id, request)
+                .then(Mono.fromSupplier(() -> {
+                    Map<String, Object> response = new LinkedHashMap<>();
+                    response.put("status", "success");
+                    response.put("message", "Employee updated successfully");
+                    return ResponseEntity.ok(response);
+                }))
                 .onErrorResume(EmployeeNotFoundException.class, e -> {
                     Map<String, Object> error = new LinkedHashMap<>();
                     error.put("status", "error");
                     error.put("code", e.getCode());
                     error.put("message", e.getMessage());
-                    return Mono.just(ResponseEntity.status(e.getHttpStatus()).body(error));
+                    return Mono.just(ResponseEntity.status(404).body(error));
                 });
     }
+
+
+
+    @GetMapping
+//    @PreAuthorize("hasAuthority('read_employee')")
+    public Mono<ResponseEntity<List<Employee>>> getAllEmployees(
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "10") int limit) {
+
+        return employeeService.findAll()
+                .skip(offset)
+                .take(limit)
+                .collectList()
+                .map(ResponseEntity::ok);
+    }
+
+
+    @GetMapping("/search/by-matricule")
+    public Mono<ResponseEntity<Object>> getEmployeeByMatricule(@RequestParam String matricule) {
+        return employeeService.findByMatricule(matricule)
+                .map(employee -> ResponseEntity.<Object>ok(employee)) // <Object> force la compatibilité
+                .onErrorResume(e -> {
+                    Map<String, Object> error = new LinkedHashMap<>();
+                    if (e instanceof EmployeeNotFoundException ex) {
+                        error.put("status", "error");
+                        error.put("code", ex.getCode());
+                        error.put("message", ex.getMessage());
+                        return Mono.just(ResponseEntity.status(ex.getHttpStatus()).body(error));
+                    }
+                    error.put("status", "error");
+                    error.put("message", "Unexpected error");
+                    return Mono.just(ResponseEntity.status(500).body(error));
+                });
+    }
+
+
+
 
 
 }

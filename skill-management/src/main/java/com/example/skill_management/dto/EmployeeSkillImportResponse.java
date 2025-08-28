@@ -13,7 +13,7 @@ public class EmployeeSkillImportResponse {
 
     private int nbSuccess;
     private int nbCreatedSkills;
-    private List<SkillInfo> createdSkills;
+    private List<ImportedNewSkillResponse> createdSkills;
 
     private int nbFailures;
     private List<FailureDetail> failureDetails;

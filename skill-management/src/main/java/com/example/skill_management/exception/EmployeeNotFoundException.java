@@ -8,4 +8,12 @@ public class EmployeeNotFoundException extends ApiException {
         super(ErrorCodeEnum.SMGT_EMPLOYEE_NOT_FOUND,
                 "Employee not found with firstname: " + firstname + " and lastname: " + lastname);
     }
+    public EmployeeNotFoundException(Long id) {
+        super(ErrorCodeEnum.SMGT_EMPLOYEE_NOT_FOUND,
+                "Employee not found with id: " + id);
+    }
+    public EmployeeNotFoundException(String matricule) {
+        super(ErrorCodeEnum.SMGT_EMPLOYEE_NOT_FOUND,
+                "Employee not found with matricule: " + matricule);
+    }
 }

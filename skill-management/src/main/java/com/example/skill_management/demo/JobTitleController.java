@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
@@ -22,6 +23,7 @@ public class JobTitleController {
     private final JobTitleService service;
 
     @PostMapping
+    @PreAuthorize("hasAuthority('write_jobTitle')")
     public Mono<ResponseEntity<Object>> createJobTitle(@RequestBody JobTitleRequest request) {
         return service.createJobTitle(request.getName(), request.getDescription())
                 .map(saved -> ResponseEntity.ok(saved))
@@ -37,11 +39,18 @@ public class JobTitleController {
                             .body(Map.of("message", "Internal server error")));
                 });
     }
+
     @GetMapping
-    public Mono<ResponseEntity<List<JobTitle>>> getAllJobTitles() {
+    @PreAuthorize("hasAuthority('read_jobTitle')")
+    public Mono<ResponseEntity<List<JobTitle>>> getAllJobTitles(
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "10") int limit) {
+
         return service.getAllJobTitles()
+                .skip(offset)
+                .take(limit)
                 .collectList()
-                .map(list -> ResponseEntity.ok(list))
+                .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.noContent().build());
     }
 

@@ -13,6 +13,8 @@ public interface EmployeeRepository extends R2dbcRepository<Employee, Long> {
 
     @Query("SELECT * FROM employee WHERE LOWER(matricule) = LOWER(:matricule)")
     Mono<Employee> findByMatriculeIgnoreCase(@Param("matricule") String matricule);
+    Mono<Employee> findByMatricule(String matricule);
+
 
 
 

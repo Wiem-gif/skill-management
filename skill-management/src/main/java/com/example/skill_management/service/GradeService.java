@@ -38,10 +38,15 @@ public class GradeService {
                 });
     }
 
-    public Mono<Void> delete(Long id) {
-        return repository.findById(id)
-                .switchIfEmpty(Mono.error(new RuntimeException("Grade not found")))
-                .flatMap(existing -> repository.delete(existing));
-    }
+//    public Mono<Void> delete(Long id) {
+//        return repository.findById(id)
+//                .switchIfEmpty(Mono.error(new RuntimeException("Grade not found")))
+//                .flatMap(existing -> repository.delete(existing));
+//    }
+public Mono<Void> delete(Long id) {
+    return repository.findById(id)
+            .switchIfEmpty(Mono.error(new GradeNotFoundException(id.toString())))
+            .flatMap(repository::delete); // Mono<Void>
+}
 
 }

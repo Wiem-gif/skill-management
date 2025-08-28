@@ -58,23 +58,36 @@ public class EmployeeSkillService {
         public String action;          // "Saved", "Updated", "Error"
         public String errorMessage;
         public int row;
-        public String category;        // pour le SkillInfo
+        public String category;
+        public Long skillId;// pour le SkillInfo
 
-        public ImportResult(String employeeMatricule, String skillName, String action, String errorMessage, int row, String category) {
+        public ImportResult(String employeeMatricule, String skillName, String action, String errorMessage, int row, String category, Long skillId) {
             this.employeeMatricule = employeeMatricule;
             this.skillName = skillName;
             this.action = action;
             this.errorMessage = errorMessage;
             this.row = row;
             this.category = category;
+            this.skillId = skillId;
         }
+
     }
 
 
 
-    public Flux<EmployeeSkill> findAll() {
-        return employeeSkillRepository.findAll();
+    public Flux<GetAllEmployeeSkillResponse> findAllWithSkillName() {
+        return employeeSkillRepository.findAll()
+                .flatMap(employeeSkill ->
+                        skillRepository.findById(employeeSkill.getSkillId())
+                                .map(skill -> new GetAllEmployeeSkillResponse(
+                                        employeeSkill.getEmployeeId(),
+                                        employeeSkill.getSkillId(),
+                                        skill.getName(),
+                                        employeeSkill.getCurrentLevel()
+                                ))
+                );
     }
+
 
 //    public Flux<EmployeeSkill> findByEmployeeId(Long employeeId) {
 //        return employeeSkillRepository.findByEmployeeId(employeeId);
@@ -139,26 +152,85 @@ public class EmployeeSkillService {
     }
 
 
-
-    public Flux<EmployeeSkill> findBySkillId(Long skillId) {
-        return employeeSkillRepository.findBySkillId(skillId);
-    }
-
-    public Mono<EmployeeSkill> create(EmployeeSkill employeeSkill) {
-        return employeeSkillRepository.save(employeeSkill);
-    }
-
-    public Flux<EmployeeSkill> createMultiple(Long employeeId, List<EmployeeSkillsRequest.SkillLevelDTO> skills) {
-        return Flux.fromIterable(skills)
-                .flatMap(skill -> {
-                    EmployeeSkill employeeSkill = EmployeeSkill.builder()
-                            .employeeId(employeeId)
-                            .skillId(skill.getSkillId())
-                            .currentLevel(skill.getCurrentLevel())
-                            .build();
-                    return create(employeeSkill);
+    public Mono<ResponseEntity<Object>> getSkillsByEmployeeMatriculeDetailed(String matricule) {
+        return employeeRepository.findByMatricule(matricule)  // <- changement ici
+                .switchIfEmpty(Mono.error(new RuntimeException("Employee not found")))
+                .flatMap(employee ->
+                        employeeSkillRepository.findByEmployeeId(employee.getId()) // on garde employeeId pour les skills
+                                .collectList()
+                                .flatMap(employeeSkills ->
+                                        Flux.fromIterable(employeeSkills)
+                                                .flatMap(empSkill -> skillRepository.findById(empSkill.getSkillId())
+                                                        .flatMap(skill -> skillCategoryRepository.findById(skill.getSkillCategoryId())
+                                                                .map(category -> new EmployeeSkillsResponse.SkillInfo(
+                                                                        skill.getId(),
+                                                                        skill.getName(),
+                                                                        category.getName(),
+                                                                        empSkill.getCurrentLevel()
+                                                                ))
+                                                        )
+                                                )
+                                                .collectList()
+                                                .flatMap(skillsInfo -> {
+                                                    if (employee.getJobTitleId() == null) {
+                                                        EmployeeSkillsResponse response = new EmployeeSkillsResponse(
+                                                                employee.getId(),
+                                                                employee.getFirstname(),
+                                                                employee.getLastname(),
+                                                                employee.getMatricule(),
+                                                                null,
+                                                                skillsInfo
+                                                        );
+                                                        return Mono.just(ResponseEntity.ok((Object) response));
+                                                    } else {
+                                                        return jobTitleRepository.findById(employee.getJobTitleId())
+                                                                .map(jobTitle -> {
+                                                                    EmployeeSkillsResponse response = new EmployeeSkillsResponse(
+                                                                            employee.getId(),
+                                                                            employee.getFirstname(),
+                                                                            employee.getLastname(),
+                                                                            employee.getMatricule(),
+                                                                            jobTitle.getName(),
+                                                                            skillsInfo
+                                                                    );
+                                                                    return ResponseEntity.ok((Object) response);
+                                                                });
+                                                    }
+                                                })
+                                )
+                )
+                .onErrorResume(e -> {
+                    if (e.getMessage().contains("Employee not found")) {
+                        return Mono.just(
+                                ResponseEntity.status(404)
+                                        .body((Object) Map.of("error", "Employee not found"))
+                        );
+                    }
+                    return Mono.error(e);
                 });
     }
+
+
+
+//    public Flux<EmployeeSkill> findBySkillId(Long skillId) {
+//        return employeeSkillRepository.findBySkillId(skillId);
+//    }
+//
+//    public Mono<EmployeeSkill> create(EmployeeSkill employeeSkill) {
+//        return employeeSkillRepository.save(employeeSkill);
+//    }
+
+//    public Flux<EmployeeSkill> createMultiple(Long employeeId, List<EmployeeSkillsRequest.SkillLevelDTO> skills) {
+//        return Flux.fromIterable(skills)
+//                .flatMap(skill -> {
+//                    EmployeeSkill employeeSkill = EmployeeSkill.builder()
+//                            .employeeId(employeeId)
+//                            .skillId(skill.getSkillId())
+//                            .currentLevel(skill.getCurrentLevel())
+//                            .build();
+//                    return create(employeeSkill);
+//                });
+//    }
 
     public Mono<EmployeeSkillUpdateResponse> updateSkillsSummary(Long employeeId, List<EmployeeSkillsRequest.SkillLevelDTO> skills) {
 
@@ -243,9 +315,7 @@ public class EmployeeSkillService {
 
 
 
-    /**
-     * Nouvelle version typée avec DTO EmployeeSkillImportResponse
-     */
+
     public Mono<ResponseEntity<EmployeeSkillImportResponse>> importSkill(FilePart file) {
         // Étape 1 : Parser le fichier Excel en TempEmployeeSkill
         Flux<TempEmployeeSkill> tempSkills = parseWorkbook(file)
@@ -262,10 +332,10 @@ public class EmployeeSkillService {
         return results.collectList().map(list -> {
 
             // Déduplication des compétences créées
-            List<SkillInfo> createdSkills = list.stream()
+            List<ImportedNewSkillResponse> createdSkills = list.stream()
                     .filter(r -> "Saved".equals(r.action))
-                    .map(r -> SkillInfo.builder()
-                            .id(null)
+                    .map(r -> ImportedNewSkillResponse.builder()
+
                             .name(r.skillName)
                             .category(r.category != null ? r.category : "unknown")
                             .build())
@@ -305,10 +375,6 @@ public class EmployeeSkillService {
             return ResponseEntity.ok(response);
         });
     }
-
-
-
-
 
 
 
@@ -368,36 +434,17 @@ public class EmployeeSkillService {
         String matricule = tempSkill.employeeMatricule.trim().toUpperCase();
         String skillName = tempSkill.skillName.trim().replaceAll("\\s+", " ");
 
-        // Chercher ou créer la skill
-        Mono<Skill> skillMono = skillRepository.findByNameIgnoreCase(skillName)
-                .switchIfEmpty(Mono.defer(() ->
-                        skillCategoryRepository.findByNameIgnoreCase("unknown")
-                                .switchIfEmpty(skillCategoryRepository.save(
-                                        SkillCategory.builder().name("unknown").build()
-                                ))
-                                .flatMap(cat -> {
-                                    Skill newSkill = new Skill();
-                                    newSkill.setName(skillName);
-                                    newSkill.setSkillCategoryId(cat.getId());
-                                    return skillRepository.save(newSkill);
-                                })
-                ));
-
-        return skillMono.flatMap(skill ->
-                        // Tenter un update par matricule
+        return skillRepository.findByNameIgnoreCase(skillName)
+                .flatMap(skill ->
+                        // Mise à jour du niveau si déjà lié
                         employeeSkillRepository.updateSkillLevelByMatricule(matricule, skill.getId(), tempSkill.currentLevel)
                                 .flatMap(rowsUpdated -> {
                                     if (rowsUpdated > 0) {
                                         return Mono.just(new ImportResult(
-                                                matricule,
-                                                skill.getName(),
-                                                "Updated",
-                                                null,
-                                                tempSkill.row,
-                                                skill.getSkillCategoryId() != null ? "known" : "unknown"
+                                                matricule, skill.getName(), "Updated", null,
+                                                tempSkill.row, null, skill.getId()
                                         ));
                                     } else {
-                                        // L'employé existe ?
                                         return employeeRepository.findByMatriculeIgnoreCase(matricule)
                                                 .flatMap(employee -> {
                                                     EmployeeSkill es = new EmployeeSkill();
@@ -406,35 +453,49 @@ public class EmployeeSkillService {
                                                     es.setCurrentLevel(tempSkill.currentLevel);
                                                     return employeeSkillRepository.save(es)
                                                             .map(saved -> new ImportResult(
-                                                                    matricule,
-                                                                    skill.getName(),
-                                                                    "Saved",
-                                                                    null,
-                                                                    tempSkill.row,
-                                                                    skill.getSkillCategoryId() != null ? "known" : "unknown"
+                                                                    matricule, skill.getName(), "Saved", null,
+                                                                    tempSkill.row, null, skill.getId()
                                                             ));
                                                 })
-                                                .switchIfEmpty(Mono.defer(() -> {
-                                                    // Matricule inexistant → erreur
-                                                    return Mono.just(new ImportResult(
-                                                            matricule,
-                                                            skill.getName(),
-                                                            "Error",
-                                                            "Employee not found",
-                                                            tempSkill.row,
-                                                            "unknown"
-                                                    ));
-                                                }));
+                                                .switchIfEmpty(Mono.just(new ImportResult(
+                                                        matricule, skill.getName(), "Error",
+                                                        "Employee not found", tempSkill.row, null, skill.getId()
+                                                )));
                                     }
                                 })
                 )
+                // Si la compétence n’existe pas → création
+                .switchIfEmpty(
+                        skillCategoryRepository.findByNameIgnoreCase("unknown")
+                                .switchIfEmpty(skillCategoryRepository.save(SkillCategory.builder().name("unknown").build()))
+                                .flatMap(cat -> {
+                                    Skill newSkill = new Skill();
+                                    newSkill.setName(skillName);
+                                    newSkill.setSkillCategoryId(cat.getId());
+                                    return skillRepository.save(newSkill);
+                                })
+                                .flatMap(newSkill ->
+                                        employeeRepository.findByMatriculeIgnoreCase(matricule)
+                                                .flatMap(employee -> {
+                                                    EmployeeSkill es = new EmployeeSkill();
+                                                    es.setEmployeeId(employee.getId());
+                                                    es.setSkillId(newSkill.getId());
+                                                    es.setCurrentLevel(tempSkill.currentLevel);
+                                                    return employeeSkillRepository.save(es)
+                                                            .map(saved -> new ImportResult(
+                                                                    matricule, newSkill.getName(), "CreatedSkill", null,
+                                                                    tempSkill.row, "unknown", newSkill.getId()
+                                                            ));
+                                                })
+                                                .switchIfEmpty(Mono.just(new ImportResult(
+                                                        matricule, newSkill.getName(), "Error",
+                                                        "Employee not found", tempSkill.row, "unknown", newSkill.getId()
+                                                )))
+                                )
+                )
                 .onErrorResume(e -> Mono.just(new ImportResult(
-                        matricule,
-                        skillName,
-                        "Error",
-                        e.getMessage(),
-                        tempSkill.row,
-                        "unknown"
+                        matricule, skillName, "Error", e.getMessage(),
+                        tempSkill.row, "unknown", null
                 )));
     }
 
@@ -603,12 +664,12 @@ public class EmployeeSkillService {
                             return jobTitleRepository.findById(emp.getJobTitleId())
                                     .map(job -> applyOperator(job.getName(), filter.getOperator(), filter.getValue()))
                                     .defaultIfEmpty(false);
-                        case "matricule":
-                            return Mono.just(applyOperator(emp.getMatricule(), filter.getOperator(), filter.getValue()));
-                        case "firstname":
-                            return Mono.just(applyOperator(emp.getFirstname(), filter.getOperator(), filter.getValue()));
-                        case "lastname":
-                            return Mono.just(applyOperator(emp.getLastname(), filter.getOperator(), filter.getValue()));
+//                        case "matricule":
+//                            return Mono.just(applyOperator(emp.getMatricule(), filter.getOperator(), filter.getValue()));
+//                        case "firstname":
+//                            return Mono.just(applyOperator(emp.getFirstname(), filter.getOperator(), filter.getValue()));
+//                        case "lastname":
+//                            return Mono.just(applyOperator(emp.getLastname(), filter.getOperator(), filter.getValue()));
                         default:
                             return Mono.just(false);
                     }
@@ -622,9 +683,9 @@ public class EmployeeSkillService {
             String field = filter.getName().toLowerCase();
             boolean matched = switch (field) {
                 case "jobtitle" -> applyOperator(jobTitleMap.get(emp.getJobTitleId()), filter.getOperator(), filter.getValue());
-                case "matricule" -> applyOperator(emp.getMatricule(), filter.getOperator(), filter.getValue());
-                case "firstname" -> applyOperator(emp.getFirstname(), filter.getOperator(), filter.getValue());
-                case "lastname" -> applyOperator(emp.getLastname(), filter.getOperator(), filter.getValue());
+//                case "matricule" -> applyOperator(emp.getMatricule(), filter.getOperator(), filter.getValue());
+//                case "firstname" -> applyOperator(emp.getFirstname(), filter.getOperator(), filter.getValue());
+//                case "lastname" -> applyOperator(emp.getLastname(), filter.getOperator(), filter.getValue());
                 default -> false;
             };
 

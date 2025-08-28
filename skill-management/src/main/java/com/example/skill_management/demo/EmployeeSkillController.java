@@ -12,11 +12,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.codec.multipart.FilePart;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 
 import java.util.List;
 import java.util.Map;
@@ -31,9 +34,20 @@ public class EmployeeSkillController {
 
 
     @GetMapping
-    public Flux<EmployeeSkill> getAll() {
-        return service.findAll();
+    @PreAuthorize("hasAuthority('read_employee_skill')")
+    public Mono<ResponseEntity<List<GetAllEmployeeSkillResponse>>> getAll(
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "10") int limit) {
+
+        return service.findAllWithSkillName()
+                .skip(offset)
+                .take(limit)
+                .collectList()
+                .map(ResponseEntity::ok)
+                .defaultIfEmpty(ResponseEntity.ok(List.of()));
     }
+
+
 
     // Ancienne API commentée : recherche par matricule
     /*
@@ -48,39 +62,41 @@ public class EmployeeSkillController {
 //        return service.findByEmployeeId(employeeId);
 //    }
 @GetMapping("/employee/{employeeId}")
+@PreAuthorize("hasAuthority('read_employee_skill')")
 public Mono<ResponseEntity<Object>> getEmployeeSkillsDetailed(@PathVariable Long employeeId) {
     return service.getSkillsByEmployeeIdDetailed(employeeId);
 }
 
-
-
-
-    //    @GetMapping("/skill/{skillId}")
-//    public Flux<EmployeeSkill> getBySkillId(@PathVariable Long skillId) {
-//        return service.findBySkillId(skillId);
-//    }
-@GetMapping("/skill/{skillId}")
-public Mono<ResponseEntity<?>> getBySkillId(@PathVariable Long skillId) {
-    Flux<EmployeeSkill> employees = service.findBySkillId(skillId);
-
-    return employees.hasElements()
-            .flatMap(hasElements -> {
-                if (hasElements) {
-                    return Mono.just(ResponseEntity.ok(employees));
-                } else {
-                    return Mono.just(
-                            ResponseEntity.status(404)
-                                    .body(Map.of("error", "No employees found for this skill"))
-                    );
-                }
-            });
-}
-
-    @PostMapping
-    public Mono<List<EmployeeSkill>> create(@RequestBody EmployeeSkillsRequest request) {
-        return service.createMultiple(request.getEmployeeId(), request.getSkills())
-                .collectList();
+    @GetMapping("/employee/matricule/{matricule}")
+    @PreAuthorize("hasAuthority('read_employee_skill')")
+    public Mono<ResponseEntity<Object>> getEmployeeSkillsDetailedByMatricule(@PathVariable String matricule) {
+        return service.getSkillsByEmployeeMatriculeDetailed(matricule);
     }
+
+
+
+
+//    @GetMapping("/skill/{skillId}")
+//    @PreAuthorize("hasAuthority('read_employee_skill')")
+//    public Mono<ResponseEntity<?>> getBySkillId(@PathVariable Long skillId) {
+//        return service.findBySkillId(skillId)
+//                .collectList()
+//                .flatMap(list -> {
+//                    if (list.isEmpty()) {
+//                        return Mono.just(ResponseEntity.status(404)
+//                                .body(Map.of("error", "No employees found for this skill")));
+//                    } else {
+//                        return Mono.just(ResponseEntity.ok(list));
+//                    }
+//                });
+//    }
+
+
+//    @PostMapping
+//    public Mono<List<EmployeeSkill>> create(@RequestBody EmployeeSkillsRequest request) {
+//        return service.createMultiple(request.getEmployeeId(), request.getSkills())
+//                .collectList();
+//    }
 
     // Ancienne API update par matricule et skillId commentée
     /*
@@ -96,6 +112,7 @@ public Mono<ResponseEntity<?>> getBySkillId(@PathVariable Long skillId) {
     @Operation(summary = "Update employee skills by employee ID (Admin only)",
             description = "Restricted to Admin")
     @PutMapping("/employee/{employeeId}")
+    @PreAuthorize("hasAuthority('update_employee_skill')")
     public Mono<ResponseEntity<Object>> updateSkills(
             @PathVariable Long employeeId,
             @RequestBody List<EmployeeSkillsRequest.SkillLevelDTO> skills) {
@@ -103,18 +120,34 @@ public Mono<ResponseEntity<?>> getBySkillId(@PathVariable Long skillId) {
         return service.updateSkillsSummary(employeeId, skills)
                 .map(summary -> ResponseEntity.ok((Object) summary))
                 .onErrorResume(e -> {
+                    // 🔹 Gérer l'erreur si l'employé n'existe pas
                     if (e.getMessage().contains("Employee not found")) {
                         return Mono.just(ResponseEntity.status(404)
-                                .body(Map.of("error", "Employee with id " + employeeId + " not found")));
+                                .body(Map.of(
+                                        "code", "SMGT-0404",
+                                        "message", "Employee with id " + employeeId + " not found",
+                                        "status", 404
+                                )));
                     }
+                    // 🔹 Gérer accès refusé
+                    if (e instanceof AccessDeniedException || e instanceof AuthenticationException) {
+                        return Mono.just(ResponseEntity.status(403)
+                                .body(Map.of(
+                                        "code", "SMGT-0403",
+                                        "message", "Forbidden - Access Denied",
+                                        "status", 403
+                                )));
+                    }
+                    // 🔹 Autres erreurs serveur → 500
                     return Mono.just(ResponseEntity.status(500)
                             .body(Map.of(
-                                    "error", "Internal Server Error",
-                                    "details", e.getMessage()
+                                    "code", "SMGT-0000",
+                                    "message", e.getMessage(),
+                                    "status", 500
                             )));
                 });
-    }
 
+    }
 
     // Ancienne API delete par matricule commentée
     /*
@@ -126,11 +159,28 @@ public Mono<ResponseEntity<?>> getBySkillId(@PathVariable Long skillId) {
 
     // Nouvelle API delete par employeeId (toutes compétences supprimées)
     @DeleteMapping("/{employeeId}")
-    public Mono<ResponseEntity<Object>> deleteByEmployeeId(@PathVariable Long employeeId) {
+    @PreAuthorize("hasAuthority('delete_employee_skill')")
+    public Mono<ResponseEntity<Map<String, Object>>> deleteByEmployeeId(@PathVariable Long employeeId) {
         return service.deleteByEmployeeId(employeeId)
-                .then(Mono.just(ResponseEntity.noContent().build()))
+                .then(Mono.fromSupplier(() -> {
+                    Map<String, Object> response = Map.of(
+                            "status", "success",
+                            "message", "Employee skills deleted successfully"
+                    );
+                    return ResponseEntity.ok(response); // HTTP 200 avec JSON
+                }))
                 .onErrorResume(e -> {
-                    if (e.getMessage().contains("Employee not found")) {
+                    if (e instanceof org.springframework.security.access.AccessDeniedException) {
+                        return Mono.just(
+                                ResponseEntity.status(403)
+                                        .body(Map.of(
+                                                "code", "SMGT-0403",
+                                                "message", "Forbidden - Access Denied",
+                                                "status", 403
+                                        ))
+                        );
+                    }
+                    if (e.getMessage() != null && e.getMessage().contains("Employee not found")) {
                         return Mono.just(
                                 ResponseEntity.status(404)
                                         .body(Map.of("error", "Employee with id " + employeeId + " not found"))
@@ -139,6 +189,7 @@ public Mono<ResponseEntity<?>> getBySkillId(@PathVariable Long skillId) {
                     return Mono.error(e);
                 });
     }
+
 
 
 //    @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -193,6 +244,7 @@ public Mono<ResponseEntity<?>> searchEmployees(
 
 
     @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('import_employee_skill')")
     public Mono<ResponseEntity<EmployeeSkillImportResponse>> importEmployeeSkills(
             @Parameter(
                     description = "Excel file containing skills per employee",

@@ -1,12 +1,17 @@
 package com.example.skill_management.service;
 
 import com.example.skill_management.dto.EmployeeImportResult;
+import com.example.skill_management.dto.EmployeeSkillImportResponse;
+import com.example.skill_management.dto.EmployeeUpdateRequest;
 import com.example.skill_management.exception.*;
 import com.example.skill_management.model.Employee;
 import com.example.skill_management.Enum.ErrorCodeEnum;
 import com.example.skill_management.repository.EmployeeRepository;
+import com.example.skill_management.repository.EmployeeSkillRepository;
 import com.example.skill_management.repository.GradeRepository;
 import com.example.skill_management.repository.JobTitleRepository;
+
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -31,6 +36,7 @@ public class EmployeeService {
     private final EmployeeRepository employeeRepository;
     private final JobTitleRepository jobTitleRepository;
     private final GradeRepository gradeRepository;
+    private final EmployeeSkillRepository employeeSkillRepository;
 
     public Mono<Employee> createEmployee(Employee employee) {
         validateEmployee(employee);
@@ -270,11 +276,95 @@ public class EmployeeService {
         return null;
     }
 
-    public Mono<Employee> findByFirstnameAndLastname(String firstname, String lastname) {
-        return employeeRepository.findByFirstnameAndLastname(firstname, lastname)
-                .switchIfEmpty(Mono.error(
-                        new EmployeeNotFoundException(firstname, lastname)
-                ));
+//    public Mono<Employee> findByFirstnameAndLastname(String firstname, String lastname) {
+//        return employeeRepository.findByFirstnameAndLastname(firstname, lastname)
+//                .switchIfEmpty(Mono.error(
+//                        new EmployeeNotFoundException(firstname, lastname)
+//                ));
+//    }
+
+    public Mono<Void> deleteEmployee(Long id) {
+        return employeeRepository.findById(id)
+                .switchIfEmpty(Mono.error(new EmployeeNotFoundException("EMPLOYEE_NOT_FOUND", "Employee not found")))
+                .flatMap(employee ->
+                        employeeSkillRepository.deleteByEmployeeId(employee.getId())
+                                .then(employeeRepository.delete(employee))
+                );
     }
+
+    // 🔹 Mettre à jour un employé
+    public Mono<Void> updateEmployee(Long id, EmployeeUpdateRequest request) {
+        return employeeRepository.findById(id)
+                .switchIfEmpty(Mono.error(new EmployeeNotFoundException(id)))
+                .flatMap(existing -> {
+                    if (request.getMatricule() != null) {
+                        existing.setMatricule(request.getMatricule());
+                    }
+                    if (request.getFirstname() != null) {
+                        existing.setFirstname(request.getFirstname());
+                    }
+                    if (request.getLastname() != null) {
+                        existing.setLastname(request.getLastname());
+                    }
+                    if (request.getGender() != null) {
+                        existing.setGender(request.getGender());
+                    }
+                    if (request.getBirthday() != null) {
+                        existing.setBirthday(request.getBirthday());
+                    }
+                    if (request.getCin() != null) {
+                        existing.setCin(request.getCin());
+                    }
+                    if (request.getEmail() != null) {
+                        existing.setEmail(request.getEmail());
+                    }
+                    if (request.getActivity() != null) {
+                        existing.setActivity(request.getActivity());
+                    }
+                    if (request.getGradeId() != null) {
+                        existing.setGradeId(request.getGradeId());
+                    }
+                    if (request.getFunction() != null) {
+                        existing.setFunction(request.getFunction());
+                    }
+                    if (request.getPreviousExperience() != null) {
+                        existing.setPreviousExperience(request.getPreviousExperience());
+                    }
+                    if (request.getHierarchicalHead() != null) {
+                        existing.setHierarchicalHead(request.getHierarchicalHead());
+                    }
+                    if (request.getDateEntry() != null) {
+                        existing.setDateEntry(request.getDateEntry());
+                    }
+                    if (request.getContractType() != null) {
+                        existing.setContractType(request.getContractType());
+                    }
+                    if (request.getContractEnd() != null) {
+                        existing.setContractEnd(request.getContractEnd());
+                    }
+                    if (request.getStatus() != null) {
+                        existing.setStatus(request.getStatus());
+                    }
+                    if (request.getJobTitleId() != null) {
+                        existing.setJobTitleId(request.getJobTitleId());
+                    }
+
+                    return employeeRepository.save(existing).then();
+                });
+    }
+
+
+
+    public Flux<Employee> findAll() {
+        return employeeRepository.findAll();
+    }
+
+    public Mono<Employee> findByMatricule(String matricule) {
+        return employeeRepository.findByMatricule(matricule)
+                .switchIfEmpty(Mono.error(new EmployeeNotFoundException(matricule)));
+
+    }
+
+
 
 }
