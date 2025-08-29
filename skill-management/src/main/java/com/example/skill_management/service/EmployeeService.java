@@ -1,7 +1,7 @@
 package com.example.skill_management.service;
 
 import com.example.skill_management.dto.EmployeeImportResult;
-import com.example.skill_management.dto.EmployeeSkillImportResponse;
+
 import com.example.skill_management.dto.EmployeeUpdateRequest;
 import com.example.skill_management.exception.*;
 import com.example.skill_management.model.Employee;
@@ -115,7 +115,6 @@ public class EmployeeService {
                 .then();
     }
 
-    // --------------------- IMPORT EMPLOYEES ---------------------
     public Flux<EmployeeImportResult> importEmployees(FilePart filePart) {
         return DataBufferUtils.join(filePart.content())
                 .flatMapMany(dataBuffer -> {
@@ -125,18 +124,13 @@ public class EmployeeService {
                     return parseWorkbookReactive(bytes);
                 })
                 .index()
-                .flatMap(tuple -> {
+                .concatMap(tuple -> {
                     long rowIndex = tuple.getT1() + 2;
                     Employee employee = tuple.getT2();
-
-                    return createEmployee(employee)
-                            .map(saved -> new EmployeeImportResult((int) rowIndex, saved.getMatricule(), null))
-                            .onErrorResume(ApiException.class, e ->
-                                    Mono.just(new EmployeeImportResult((int) rowIndex, employee.getMatricule(), e.getMessage()))
-                            );
-
+                    return createEmployeeForImport(employee, (int) rowIndex);
                 });
     }
+
 
     private Flux<Employee> parseWorkbookReactive(byte[] bytes) {
         return Mono.fromCallable(() -> {
@@ -363,6 +357,42 @@ public class EmployeeService {
         return employeeRepository.findByMatricule(matricule)
                 .switchIfEmpty(Mono.error(new EmployeeNotFoundException(matricule)));
 
+    }
+
+    public Mono<EmployeeImportResult> createEmployeeForImport(Employee employee, int rowIndex) {
+        validateEmployee(employee);
+        Employee employeeToSave = buildEmployeeToSave(employee);
+
+        return checkDuplicate(employeeToSave)
+                .then(employeeRepository.save(employeeToSave))
+                .map(saved -> new EmployeeImportResult(rowIndex, saved.getMatricule(), null))
+                .onErrorResume(e -> {
+                    String errorMessage;
+
+                    if (e instanceof DuplicateMatriculeException) {
+                        errorMessage = "Employee matricule already exists";
+                    } else if (e instanceof DuplicateEmailException) {
+                        errorMessage = "Email already exists";
+                    } else if (e instanceof DuplicateCinException) {
+                        errorMessage = "CIN already exists";
+                    }
+                    // ✅ Catch DB constraint violations
+                    else if (e.getMessage() != null &&
+                            (e.getMessage().contains("uq_employee_matricule") || e.getMessage().contains("employee_matricule_key"))) {
+                        errorMessage = "Employee matricule already exists";
+                    } else if (e.getMessage() != null &&
+                            (e.getMessage().contains("uq_employee_email") || e.getMessage().contains("employee_email_key"))) {
+                        errorMessage = "Email already exists";
+                    } else if (e.getMessage() != null &&
+                            (e.getMessage().contains("uq_employee_cin") || e.getMessage().contains("employee_cin_key"))) {
+                        errorMessage = "CIN already exists";
+                    } else {
+                        errorMessage = e.getMessage();
+                    }
+
+
+                    return Mono.just(new EmployeeImportResult(rowIndex, employee.getMatricule(), errorMessage));
+                });
     }
 
 

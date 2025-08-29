@@ -131,46 +131,46 @@ public class SkillController {
 //                });
 //    }
 
-    @PutMapping("/{id}/category")
-    @PreAuthorize("hasAuthority('update_skill')")
-    public Mono<ResponseEntity<ApiUpdateCategoyResponse<SkillResponseDTO>>> updateSkillCategory(
-            @PathVariable Long id,
-            @RequestBody Map<String, String> body) {
-
-        String categoryName = body.get("name");
-        if (categoryName == null || categoryName.isBlank()) {
-            return Mono.just(ResponseEntity.badRequest()
-                    .body(ApiUpdateCategoyResponse.<SkillResponseDTO>builder()
-                            .message("Category name must be provided")
-                            .build()));
-        }
-
-        return service.updateSkillCategory(id, categoryName)
-                .map(skill -> {
-                    SkillResponseDTO dto = SkillResponseDTO.builder()
-                            .name(skill.getName())
-                            .skillCategoryId(skill.getSkillCategoryId())
-                            .build();
-                    return ResponseEntity.ok(
-                            ApiUpdateCategoyResponse.<SkillResponseDTO>builder()
-                                    .message("Skill updated successfully")
-                                    .data(dto)
-                                    .build()
-                    );
-                })
-                .onErrorResume(e -> {
-                    if (e.getMessage().contains("Skill not found")) {
-                        return Mono.just(ResponseEntity.status(404)
-                                .body(ApiUpdateCategoyResponse.<SkillResponseDTO>builder()
-                                        .message(e.getMessage())
-                                        .build()));
-                    }
-                    return Mono.just(ResponseEntity.status(500)
-                            .body(ApiUpdateCategoyResponse.<SkillResponseDTO>builder()
-                                    .message("An error occurred: " + e.getMessage())
-                                    .build()));
-                });
-    }
+//    @PutMapping("/{id}/category")
+//    @PreAuthorize("hasAuthority('update_skill')")
+//    public Mono<ResponseEntity<ApiUpdateCategoyResponse<SkillResponseDTO>>> updateSkillCategory(
+//            @PathVariable Long id,
+//            @RequestBody Map<String, String> body) {
+//
+//        String categoryName = body.get("name");
+//        if (categoryName == null || categoryName.isBlank()) {
+//            return Mono.just(ResponseEntity.badRequest()
+//                    .body(ApiUpdateCategoyResponse.<SkillResponseDTO>builder()
+//                            .message("Category name must be provided")
+//                            .build()));
+//        }
+//
+//        return service.updateSkillCategory(id, categoryName)
+//                .map(skill -> {
+//                    SkillResponseDTO dto = SkillResponseDTO.builder()
+//                            .name(skill.getName())
+//                            .skillCategoryId(skill.getSkillCategoryId())
+//                            .build();
+//                    return ResponseEntity.ok(
+//                            ApiUpdateCategoyResponse.<SkillResponseDTO>builder()
+//                                    .message("Skill updated successfully")
+//                                    .data(dto)
+//                                    .build()
+//                    );
+//                })
+//                .onErrorResume(e -> {
+//                    if (e.getMessage().contains("Skill not found")) {
+//                        return Mono.just(ResponseEntity.status(404)
+//                                .body(ApiUpdateCategoyResponse.<SkillResponseDTO>builder()
+//                                        .message(e.getMessage())
+//                                        .build()));
+//                    }
+//                    return Mono.just(ResponseEntity.status(500)
+//                            .body(ApiUpdateCategoyResponse.<SkillResponseDTO>builder()
+//                                    .message("An error occurred: " + e.getMessage())
+//                                    .build()));
+//                });
+//    }
 
 
 }

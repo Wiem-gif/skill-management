@@ -36,4 +36,10 @@ public interface EmployeeSkillRepository extends ReactiveCrudRepository<Employee
 
     // Recherche par skill
     Flux<EmployeeSkill> findBySkillId(Long skillId);
+
+    @Query("SELECT es.* FROM employee_skill es " +
+            "JOIN employee e ON es.employee_id = e.id " +
+            "WHERE e.matricule = :matricule AND es.skill_id = :skillId")
+    Mono<EmployeeSkill> findByEmployeeIdAndSkillIdForMatricule(String matricule, Long skillId);
+
 }

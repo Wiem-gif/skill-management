@@ -333,14 +333,14 @@ public class EmployeeSkillService {
 
             // Déduplication des compétences créées
             List<ImportedNewSkillResponse> createdSkills = list.stream()
-                    .filter(r -> "Saved".equals(r.action))
+                    .filter(r -> "CreatedSkill".equals(r.action))  // ✅ ne prendre que les vrais nouveaux skills
                     .map(r -> ImportedNewSkillResponse.builder()
-
                             .name(r.skillName)
                             .category(r.category != null ? r.category : "unknown")
                             .build())
                     .distinct()
                     .toList();
+
 
             // Déduplication des compétences mises à jour
             List<SkillInfo> updatedSkills = list.stream()
@@ -353,27 +353,33 @@ public class EmployeeSkillService {
                     .distinct()
                     .toList();
 
-            // Déduplication des erreurs par matricule + message
+            // Déduplication des erreurs
             List<FailureDetail> failureDetails = list.stream()
                     .filter(r -> "Error".equals(r.action))
                     .map(r -> new FailureDetail(r.employeeMatricule, r.errorMessage))
-                    .distinct() // ici on suppose que equals/hashCode sont sur matricule + errorMessage
+                    .distinct()
                     .toList();
 
-            // Calcul du nombre de succès après déduplication
-            int nbSuccess = createdSkills.size() + updatedSkills.size();
+            // ✅ Calcul du nbSuccess par **ligne (employee)** :
+            Map<String, List<ImportResult>> groupedByEmployee = list.stream()
+                    .collect(Collectors.groupingBy(r -> r.employeeMatricule));
+
+            long nbSuccess = groupedByEmployee.values().stream()
+                    .filter(employeeResults -> employeeResults.stream().noneMatch(r -> "Error".equals(r.action)))
+                    .count();
 
             // Création de la réponse finale
             EmployeeSkillImportResponse response = EmployeeSkillImportResponse.builder()
                     .nbCreatedSkills(createdSkills.size())
                     .createdSkills(createdSkills)
-                    .nbSuccess(nbSuccess)
+                    .nbSuccess((int) nbSuccess)  // ici le nb de lignes traitées avec succès
                     .nbFailures(failureDetails.size())
                     .failureDetails(failureDetails)
                     .build();
 
             return ResponseEntity.ok(response);
         });
+
     }
 
 

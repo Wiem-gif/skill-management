@@ -8,6 +8,8 @@ import reactor.core.publisher.Mono;
 public interface SkillRepository extends ReactiveCrudRepository<Skill, Long> {
     Flux<Skill> findBySkillCategoryId(Long categoryId);
     Mono<Skill> findByName(String name);
+    Mono<Void> deleteBySkillCategoryId(Long categoryId);
+
 
     Mono<Skill> findByNameIgnoreCase(String name);
 }

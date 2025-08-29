@@ -92,18 +92,18 @@ public class SkillService {
                 );
     }
 
-    // 🔹 Mise à jour de la catégorie d'un skill
-    public Mono<Skill> updateSkillCategory(Long skillId, String categoryName) {
-        return repository.findById(skillId)
-                .switchIfEmpty(Mono.error(new RuntimeException("Skill not found")))
-                .flatMap(skill ->
-                        getOrCreateCategoryByName(categoryName) // ✅ centralise ici
-                                .flatMap(category -> {
-                                    skill.setSkillCategoryId(category.getId());
-                                    return repository.save(skill);
-                                })
-                );
-    }
+//    // 🔹 Mise à jour de la catégorie d'un skill
+//    public Mono<Skill> updateSkillCategory(Long skillId, String categoryName) {
+//        return repository.findById(skillId)
+//                .switchIfEmpty(Mono.error(new RuntimeException("Skill not found")))
+//                .flatMap(skill ->
+//                        getOrCreateCategoryByName(categoryName)
+//                                .flatMap(category -> {
+//                                    skill.setSkillCategoryId(category.getId());
+//                                    return repository.save(skill);
+//                                })
+//                );
+//    }
 
 
 }
