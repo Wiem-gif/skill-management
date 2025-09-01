@@ -59,7 +59,7 @@ public class EmployeeSkillService {
         public String errorMessage;
         public int row;
         public String category;
-        public Long skillId;// pour le SkillInfo
+        public Long skillId;
 
         public ImportResult(String employeeMatricule, String skillName, String action, String errorMessage, int row, String category, Long skillId) {
             this.employeeMatricule = employeeMatricule;
@@ -87,11 +87,13 @@ public class EmployeeSkillService {
                                 ))
                 );
     }
+    public Mono<Long> countAllEmployeeSkills() {
+        return employeeSkillRepository.count();
+    }
 
 
-//    public Flux<EmployeeSkill> findByEmployeeId(Long employeeId) {
-//        return employeeSkillRepository.findByEmployeeId(employeeId);
-//    }
+
+
 
     public Mono<ResponseEntity<Object>> getSkillsByEmployeeIdDetailed(Long employeeId) {
         return employeeRepository.findById(employeeId)
@@ -153,10 +155,10 @@ public class EmployeeSkillService {
 
 
     public Mono<ResponseEntity<Object>> getSkillsByEmployeeMatriculeDetailed(String matricule) {
-        return employeeRepository.findByMatricule(matricule)  // <- changement ici
+        return employeeRepository.findByMatricule(matricule)
                 .switchIfEmpty(Mono.error(new RuntimeException("Employee not found")))
                 .flatMap(employee ->
-                        employeeSkillRepository.findByEmployeeId(employee.getId()) // on garde employeeId pour les skills
+                        employeeSkillRepository.findByEmployeeId(employee.getId())
                                 .collectList()
                                 .flatMap(employeeSkills ->
                                         Flux.fromIterable(employeeSkills)
@@ -212,25 +214,7 @@ public class EmployeeSkillService {
 
 
 
-//    public Flux<EmployeeSkill> findBySkillId(Long skillId) {
-//        return employeeSkillRepository.findBySkillId(skillId);
-//    }
-//
-//    public Mono<EmployeeSkill> create(EmployeeSkill employeeSkill) {
-//        return employeeSkillRepository.save(employeeSkill);
-//    }
 
-//    public Flux<EmployeeSkill> createMultiple(Long employeeId, List<EmployeeSkillsRequest.SkillLevelDTO> skills) {
-//        return Flux.fromIterable(skills)
-//                .flatMap(skill -> {
-//                    EmployeeSkill employeeSkill = EmployeeSkill.builder()
-//                            .employeeId(employeeId)
-//                            .skillId(skill.getSkillId())
-//                            .currentLevel(skill.getCurrentLevel())
-//                            .build();
-//                    return create(employeeSkill);
-//                });
-//    }
 
     public Mono<EmployeeSkillUpdateResponse> updateSkillsSummary(Long employeeId, List<EmployeeSkillsRequest.SkillLevelDTO> skills) {
 
@@ -333,7 +317,7 @@ public class EmployeeSkillService {
 
             // Déduplication des compétences créées
             List<ImportedNewSkillResponse> createdSkills = list.stream()
-                    .filter(r -> "CreatedSkill".equals(r.action))  // ✅ ne prendre que les vrais nouveaux skills
+                    .filter(r -> "CreatedSkill".equals(r.action))
                     .map(r -> ImportedNewSkillResponse.builder()
                             .name(r.skillName)
                             .category(r.category != null ? r.category : "unknown")
@@ -360,7 +344,7 @@ public class EmployeeSkillService {
                     .distinct()
                     .toList();
 
-            // ✅ Calcul du nbSuccess par **ligne (employee)** :
+            //  Calcul du nbSuccess par **ligne (employee)** :
             Map<String, List<ImportResult>> groupedByEmployee = list.stream()
                     .collect(Collectors.groupingBy(r -> r.employeeMatricule));
 
@@ -372,7 +356,7 @@ public class EmployeeSkillService {
             EmployeeSkillImportResponse response = EmployeeSkillImportResponse.builder()
                     .nbCreatedSkills(createdSkills.size())
                     .createdSkills(createdSkills)
-                    .nbSuccess((int) nbSuccess)  // ici le nb de lignes traitées avec succès
+                    .nbSuccess((int) nbSuccess)
                     .nbFailures(failureDetails.size())
                     .failureDetails(failureDetails)
                     .build();
@@ -580,7 +564,7 @@ public class EmployeeSkillService {
             return findEmployeesBySkills(skillFilters, offset, limit);
         }
 
-//        // Cas uniquement attributs employés (avec skills)
+        // Cas uniquement attributs employés (avec skills)
         if (!hasSkillFilters && hasEmployeeFilters) {
             return findEmployeesByAttributesWithSkills(employeeFilters, offset, limit);
         }
@@ -601,6 +585,9 @@ public class EmployeeSkillService {
                 );
 
     }
+
+
+
     // 🔹 Recherche par skills (raw, sans mapping DTO)
     private Flux<Employee> findEmployeesBySkillsRaw(List<FilterRequest> skillFilters) {
         return Flux.fromIterable(skillFilters)
@@ -625,7 +612,7 @@ public class EmployeeSkillService {
     }
 
 
-    // 🔹 Recherche par skills (privée)
+
     private Flux<EmployeeBasicInfoDTO> findEmployeesBySkills(List<FilterRequest> skillFilters, int offset, int limit) {
 
         return Flux.fromIterable(skillFilters)
@@ -670,12 +657,7 @@ public class EmployeeSkillService {
                             return jobTitleRepository.findById(emp.getJobTitleId())
                                     .map(job -> applyOperator(job.getName(), filter.getOperator(), filter.getValue()))
                                     .defaultIfEmpty(false);
-//                        case "matricule":
-//                            return Mono.just(applyOperator(emp.getMatricule(), filter.getOperator(), filter.getValue()));
-//                        case "firstname":
-//                            return Mono.just(applyOperator(emp.getFirstname(), filter.getOperator(), filter.getValue()));
-//                        case "lastname":
-//                            return Mono.just(applyOperator(emp.getLastname(), filter.getOperator(), filter.getValue()));
+
                         default:
                             return Mono.just(false);
                     }
@@ -689,9 +671,7 @@ public class EmployeeSkillService {
             String field = filter.getName().toLowerCase();
             boolean matched = switch (field) {
                 case "jobtitle" -> applyOperator(jobTitleMap.get(emp.getJobTitleId()), filter.getOperator(), filter.getValue());
-//                case "matricule" -> applyOperator(emp.getMatricule(), filter.getOperator(), filter.getValue());
-//                case "firstname" -> applyOperator(emp.getFirstname(), filter.getOperator(), filter.getValue());
-//                case "lastname" -> applyOperator(emp.getLastname(), filter.getOperator(), filter.getValue());
+
                 default -> false;
             };
 
@@ -700,7 +680,7 @@ public class EmployeeSkillService {
         return true;
     }
 
-    // 🔹 Mapping DTO
+    // Mapping DTO
     private Mono<EmployeeBasicInfoDTO> mapToDto(Employee emp) {
         return jobTitleRepository.findById(emp.getJobTitleId())
                 .map(JobTitle::getName)
@@ -722,8 +702,8 @@ public class EmployeeSkillService {
 
         return switch (operator.toLowerCase()) {
             case "equals" -> employeeValue.equalsIgnoreCase(filterValue);
-            case "greaterthan" -> compareLevels(employeeValue, filterValue) > 0;
-            case "lowerthan" -> compareLevels(employeeValue, filterValue) < 0;
+            case "greaterthan" -> compareLevels(employeeValue, filterValue) >= 0;
+            case "lowerthan" -> compareLevels(employeeValue, filterValue) <= 0;
             default -> false;
         };
     }

@@ -27,6 +27,8 @@ import java.io.InputStream;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -123,13 +125,22 @@ public class EmployeeService {
                     DataBufferUtils.release(dataBuffer);
                     return parseWorkbookReactive(bytes);
                 })
-                .index()
-                .concatMap(tuple -> {
-                    long rowIndex = tuple.getT1() + 2;
-                    Employee employee = tuple.getT2();
-                    return createEmployeeForImport(employee, (int) rowIndex);
+                .collectList() // On récupère tous les employés pour construire le set des noms
+                .flatMapMany(employees -> {
+                    Set<String> employeeFullNamesInFile = employees.stream()
+                            .map(e -> e.getFirstname() + " " + e.getLastname())
+                            .collect(Collectors.toSet());
+
+                    return Flux.fromIterable(employees)
+                            .index()
+                            .concatMap(tuple -> {
+                                long rowIndex = tuple.getT1() + 2;
+                                Employee employee = tuple.getT2();
+                                return createEmployeeForImport(employee, (int) rowIndex, employeeFullNamesInFile);
+                            });
                 });
     }
+
 
 
     private Flux<Employee> parseWorkbookReactive(byte[] bytes) {
@@ -352,6 +363,10 @@ public class EmployeeService {
     public Flux<Employee> findAll() {
         return employeeRepository.findAll();
     }
+    public Mono<Long> countAllEmployees() {
+        return employeeRepository.count();
+    }
+
 
     public Mono<Employee> findByMatricule(String matricule) {
         return employeeRepository.findByMatricule(matricule)
@@ -359,11 +374,12 @@ public class EmployeeService {
 
     }
 
-    public Mono<EmployeeImportResult> createEmployeeForImport(Employee employee, int rowIndex) {
+    public Mono<EmployeeImportResult> createEmployeeForImport(Employee employee, int rowIndex, Set<String> employeeFullNamesInFile) {
         validateEmployee(employee);
         Employee employeeToSave = buildEmployeeToSave(employee);
 
-        return checkDuplicate(employeeToSave)
+        return checkHierarchicalHead(employeeToSave, employeeFullNamesInFile)
+                .then(checkDuplicate(employeeToSave))
                 .then(employeeRepository.save(employeeToSave))
                 .map(saved -> new EmployeeImportResult(rowIndex, saved.getMatricule(), null))
                 .onErrorResume(e -> {
@@ -375,9 +391,9 @@ public class EmployeeService {
                         errorMessage = "Email already exists";
                     } else if (e instanceof DuplicateCinException) {
                         errorMessage = "CIN already exists";
-                    }
-                    // ✅ Catch DB constraint violations
-                    else if (e.getMessage() != null &&
+                    } else if (e instanceof InvalidHierarchicalHeadException) {
+                        errorMessage = e.getMessage();
+                    } else if (e.getMessage() != null &&
                             (e.getMessage().contains("uq_employee_matricule") || e.getMessage().contains("employee_matricule_key"))) {
                         errorMessage = "Employee matricule already exists";
                     } else if (e.getMessage() != null &&
@@ -390,10 +406,45 @@ public class EmployeeService {
                         errorMessage = e.getMessage();
                     }
 
-
                     return Mono.just(new EmployeeImportResult(rowIndex, employee.getMatricule(), errorMessage));
                 });
     }
+    private Mono<Void> checkHierarchicalHead(Employee employee, Set<String> employeeFullNamesInFile) {
+        String head = employee.getHierarchicalHead();
+
+        // Si NULL → OK
+        if (head == null || head.trim().isEmpty()) {
+            return Mono.empty();
+        }
+
+        // Séparer firstname et lastname du chef
+        String[] parts = head.split(" ", 2);
+        if (parts.length < 2) {
+            return Mono.error(new InvalidHierarchicalHeadException(
+                    "Hierarchical head '" + head + "' format invalid (must be 'Firstname Lastname')"));
+        }
+
+        String headFirstname = parts[0];
+        String headLastname = parts[1];
+
+        // Vérifier que l'employé ne se référence pas lui-même
+        if (headFirstname.equals(employee.getFirstname()) && headLastname.equals(employee.getLastname())) {
+            return Mono.error(new InvalidHierarchicalHeadException(
+                    "Employee cannot be their own hierarchical head"));
+        }
+
+        String fullHeadName = headFirstname + " " + headLastname;
+
+        // Vérifier d'abord dans le fichier
+        if (employeeFullNamesInFile.contains(fullHeadName)) return Mono.empty();
+
+        // Sinon vérifier dans la base
+        return employeeRepository.findByFirstnameAndLastname(headFirstname, headLastname)
+                .switchIfEmpty(Mono.error(new InvalidHierarchicalHeadException(
+                        "Hierarchical head '" + head + "' does not exist")))
+                .then();
+    }
+
 
 
 

@@ -22,6 +22,7 @@ public enum ErrorCodeEnum {
     SMGT_EMPLOYEE_REQUIRED_CIN("SMGT-0013", "National ID is required", HttpStatus.BAD_REQUEST),
     SMGT_EMPLOYEE_REQUIRED_DATE_ENTRY("SMGT-0014", "Start date is required", HttpStatus.BAD_REQUEST),
     SMGT_EMPLOYEE_REQUIRED_CONTRACT_TYPE("SMGT-0015", "Contract type is required", HttpStatus.BAD_REQUEST),
+    SMGT_EMPLOYEE_INVALID_HIERARCHICAL_HEAD("SMGT-0025", "Invalid hierarchical head", HttpStatus.BAD_REQUEST),
 
     // Uniqueness violations
     SMGT_EMPLOYEE_DUPLICATE_MATRICULE("SMGT-0016", "Employee matricule already exists", HttpStatus.CONFLICT),

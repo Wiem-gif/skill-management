@@ -5,6 +5,7 @@ import com.example.skill_management.dto.EmployeeUpdateRequest;
 import com.example.skill_management.exception.EmployeeNotFoundException;
 import com.example.skill_management.model.Employee;
 import com.example.skill_management.service.EmployeeService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,7 +30,7 @@ public class EmployeeController {
 
     @PostMapping
     @PreAuthorize("hasAuthority('write_employee')")
-
+    @Operation(summary = "Restricted to Admin")
     public Mono<ResponseEntity<Map<String, Object>>> createEmployee(@RequestBody Employee employee) {
         return employeeService.createEmployee(employee)
                 .map(saved -> {
@@ -44,6 +45,7 @@ public class EmployeeController {
 
     @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('import_employee')")
+    @Operation(summary = "Restricted to Admin")
     public Mono<ResponseEntity<Map<String, Object>>> importEmployees(
             @Parameter(description = "File to upload",
                     required = true,
@@ -84,32 +86,10 @@ public class EmployeeController {
     }
 
 
-//    @GetMapping("/search/by-name")
-//
-//    public Mono<ResponseEntity<Map<String, Object>>> getEmployeeByName(
-//            @RequestParam String firstname,
-//            @RequestParam String lastname) {
-//
-//        return employeeService.findByFirstnameAndLastname(firstname, lastname)
-//                .map(employee -> {
-//                    Map<String, Object> response = new LinkedHashMap<>();
-//                    response.put("status", "success");
-//                    response.put("id", employee.getId());
-//                    response.put("firstname", employee.getFirstname());
-//                    response.put("lastname", employee.getLastname());
-//                    return ResponseEntity.ok(response);
-//                })
-//                .onErrorResume(EmployeeNotFoundException.class, e -> {
-//                    Map<String, Object> error = new LinkedHashMap<>();
-//                    error.put("status", "error");
-//                    error.put("code", e.getCode());
-//                    error.put("message", e.getMessage());
-//                    return Mono.just(ResponseEntity.status(e.getHttpStatus()).body(error));
-//                });
-//    }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('delete_employee')")
+    @Operation(summary = "Restricted to Admin")
     public Mono<ResponseEntity<Map<String, Object>>> deleteEmployee(@PathVariable Long id) {
         return employeeService.deleteEmployee(id)
                 .then(Mono.fromSupplier(() -> {
@@ -130,6 +110,7 @@ public class EmployeeController {
     // 🔹 Mettre à jour un employé
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('update_employee')")
+    @Operation(summary = "Restricted to Admin")
     public Mono<ResponseEntity<Map<String, Object>>> updateEmployee(
             @PathVariable Long id,
             @RequestBody EmployeeUpdateRequest request) {
@@ -152,24 +133,40 @@ public class EmployeeController {
 
 
 
-    @GetMapping
-//    @PreAuthorize("hasAuthority('read_employee')")
-    public Mono<ResponseEntity<List<Employee>>> getAllEmployees(
+    @GetMapping("/list")
+    public Mono<ResponseEntity<Map<String, Object>>> getAllEmployees(
             @RequestParam(defaultValue = "0") int offset,
             @RequestParam(defaultValue = "10") int limit) {
 
-        return employeeService.findAll()
-                .skip(offset)
-                .take(limit)
-                .collectList()
-                .map(ResponseEntity::ok);
+        return employeeService.countAllEmployees()
+                .flatMap(total -> employeeService.findAll()
+                        .skip(offset)
+                        .take(limit)
+                        .collectList()
+                        .map(employees -> {
+                            Map<String, Object> response = new LinkedHashMap<>();
+                            response.put("total", total);
+                            response.put("offset", offset);
+                            response.put("limit", limit);
+                            response.put("data", employees);
+                            return ResponseEntity.ok(response);
+                        })
+                )
+                .onErrorResume(ex -> {
+                    Map<String, Object> error = new LinkedHashMap<>();
+                    error.put("code", "SMGT-0000");
+                    error.put("message", ex.getMessage());
+                    error.put("status", 500);
+                    return Mono.just(ResponseEntity.status(500).body(error));
+                });
     }
+
 
 
     @GetMapping("/search/by-matricule")
     public Mono<ResponseEntity<Object>> getEmployeeByMatricule(@RequestParam String matricule) {
         return employeeService.findByMatricule(matricule)
-                .map(employee -> ResponseEntity.<Object>ok(employee)) // <Object> force la compatibilité
+                .map(employee -> ResponseEntity.<Object>ok(employee))
                 .onErrorResume(e -> {
                     Map<String, Object> error = new LinkedHashMap<>();
                     if (e instanceof EmployeeNotFoundException ex) {

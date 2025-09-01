@@ -2,7 +2,6 @@ package com.example.skill_management.demo;
 
 
 import com.example.skill_management.dto.*;
-import com.example.skill_management.model.EmployeeSkill;
 import com.example.skill_management.service.EmployeeSkillService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -15,14 +14,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.codec.multipart.FilePart;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
-
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
 @Slf4j
 @RestController
 @RequestMapping("/employee-skills")
@@ -33,35 +32,40 @@ public class EmployeeSkillController {
     private final EmployeeSkillService service;
 
 
-    @GetMapping
+    @GetMapping("/list")
     @PreAuthorize("hasAuthority('read_employee_skill')")
-    public Mono<ResponseEntity<List<GetAllEmployeeSkillResponse>>> getAll(
+    public Mono<ResponseEntity<Map<String, Object>>> getAll(
             @RequestParam(defaultValue = "0") int offset,
             @RequestParam(defaultValue = "10") int limit) {
 
-        return service.findAllWithSkillName()
-                .skip(offset)
-                .take(limit)
-                .collectList()
-                .map(ResponseEntity::ok)
-                .defaultIfEmpty(ResponseEntity.ok(List.of()));
+        return service.countAllEmployeeSkills()
+                .flatMap(total -> service.findAllWithSkillName()
+                        .skip(offset)
+                        .take(limit)
+                        .collectList()
+                        .map(data -> {
+                            Map<String, Object> response = new LinkedHashMap<>();
+                            response.put("total", total);
+                            response.put("offset", offset);
+                            response.put("limit", limit);
+                            response.put("data", data);
+                            return ResponseEntity.ok(response);
+                        })
+                )
+                .onErrorResume(ex -> {
+                    Map<String, Object> error = new LinkedHashMap<>();
+                    error.put("code", "SMGT-0000");
+                    error.put("message", ex.getMessage());
+                    error.put("status", 500);
+                    return Mono.just(ResponseEntity.status(500).body(error));
+                });
     }
 
 
 
-    // Ancienne API commentée : recherche par matricule
-    /*
-    @GetMapping("/employee/matricule/{matricule}")
-    public Flux<EmployeeSkill> getByEmployeeMatricule(@PathVariable String matricule) {
-        return service.findByEmployeeMatricule(matricule);
-    }
-    */
 
-//    @GetMapping("/employee/{employeeId}")
-//    public Flux<EmployeeSkill> getByEmployeeId(@PathVariable Long employeeId) {
-//        return service.findByEmployeeId(employeeId);
-//    }
-@GetMapping("/employee/{employeeId}")
+
+    @GetMapping("/employee/{employeeId}")
 @PreAuthorize("hasAuthority('read_employee_skill')")
 public Mono<ResponseEntity<Object>> getEmployeeSkillsDetailed(@PathVariable Long employeeId) {
     return service.getSkillsByEmployeeIdDetailed(employeeId);
@@ -76,37 +80,7 @@ public Mono<ResponseEntity<Object>> getEmployeeSkillsDetailed(@PathVariable Long
 
 
 
-//    @GetMapping("/skill/{skillId}")
-//    @PreAuthorize("hasAuthority('read_employee_skill')")
-//    public Mono<ResponseEntity<?>> getBySkillId(@PathVariable Long skillId) {
-//        return service.findBySkillId(skillId)
-//                .collectList()
-//                .flatMap(list -> {
-//                    if (list.isEmpty()) {
-//                        return Mono.just(ResponseEntity.status(404)
-//                                .body(Map.of("error", "No employees found for this skill")));
-//                    } else {
-//                        return Mono.just(ResponseEntity.ok(list));
-//                    }
-//                });
-//    }
 
-
-//    @PostMapping
-//    public Mono<List<EmployeeSkill>> create(@RequestBody EmployeeSkillsRequest request) {
-//        return service.createMultiple(request.getEmployeeId(), request.getSkills())
-//                .collectList();
-//    }
-
-    // Ancienne API update par matricule et skillId commentée
-    /*
-    @PutMapping("/matricule/{matricule}/skill/{skillId}")
-    public Mono<EmployeeSkill> updateByMatriculeAndSkillId(@PathVariable String matricule,
-                                                           @PathVariable Long skillId,
-                                                           @RequestBody EmployeeSkill updated) {
-        return service.updateByMatriculeAndSkillId(matricule, skillId, updated);
-    }
-    */
 
     // Nouvelle API update multiple compétences par employeeId
     @Operation(summary = "Update employee skills by employee ID (Admin only)",
@@ -149,16 +123,11 @@ public Mono<ResponseEntity<Object>> getEmployeeSkillsDetailed(@PathVariable Long
 
     }
 
-    // Ancienne API delete par matricule commentée
-    /*
-    @DeleteMapping("/matricule/{matricule}")
-    public Mono<Void> deleteByMatricule(@PathVariable String matricule) {
-        return service.deleteByEmployeeMatricule(matricule);
-    }
-    */
+
 
     // Nouvelle API delete par employeeId (toutes compétences supprimées)
     @DeleteMapping("/{employeeId}")
+    @Operation(summary = "Restricted to Admin")
     @PreAuthorize("hasAuthority('delete_employee_skill')")
     public Mono<ResponseEntity<Map<String, Object>>> deleteByEmployeeId(@PathVariable Long employeeId) {
         return service.deleteByEmployeeId(employeeId)
@@ -192,58 +161,58 @@ public Mono<ResponseEntity<Object>> getEmployeeSkillsDetailed(@PathVariable Long
 
 
 
-//    @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-//    public Mono<ResponseEntity<Map<String, Object>>> importEmployeeSkills(
-//            @Parameter(
-//                    description = "Excel file containing skills per employee",
-//                    required = true,
-//                    schema = @Schema(type = "string", format = "binary"))
-//            @RequestPart("file") FilePart file) {
-//        return service.importSkill(file);
-//    }
 
-//
-@PostMapping(value = "/search", produces = MediaType.APPLICATION_JSON_VALUE)
-public Mono<ResponseEntity<?>> searchEmployees(
-        @RequestParam(defaultValue = "0") int offset,
-        @RequestParam(defaultValue = "100") int limit,
-        @RequestBody EmployeeSearchRequest request) {
+    @PostMapping(value = "/search", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ResponseEntity<Object>> searchEmployees(
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "100") int limit,
+            @RequestBody EmployeeSearchRequest request) {
 
-    if ((request.getSkillfilters() == null || request.getSkillfilters().isEmpty()) &&
-            (request.getEmployeefilters() == null || request.getEmployeefilters().isEmpty())) {
-        return Mono.just(ResponseEntity.badRequest()
-                .body("Please provide at least one skill or employee filter"));
+        if ((request.getSkillfilters() == null || request.getSkillfilters().isEmpty()) &&
+                (request.getEmployeefilters() == null || request.getEmployeefilters().isEmpty())) {
+            return Mono.just(ResponseEntity.badRequest()
+                    .body((Object) "Please provide at least one skill or employee filter"));
+        }
+
+        return service.searchEmployees(
+                        request.getSkillfilters(),
+                        request.getEmployeefilters(),
+                        offset,
+                        limit)
+                .collectList()
+                .flatMap(employees -> {
+                    if (employees.isEmpty()) {
+                        Map<String, String> body = Map.of(
+                                "message", "No employees found matching the filters"
+                        );
+                        return Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                .body((Object) body));
+                    }
+
+                    Map<String, Object> response = new LinkedHashMap<>();
+                    response.put("total", employees.size());
+                    response.put("offset", offset);
+                    response.put("limit", limit);
+                    response.put("data", employees);
+
+                    return Mono.just(ResponseEntity.ok((Object) response));
+                })
+                .onErrorResume(e -> {
+                    log.error("Error searching employees", e);
+                    Map<String, String> errorBody = Map.of(
+                            "message", "An error occurred while searching for employees"
+                    );
+                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body((Object) errorBody));
+                });
     }
 
-    return service.searchEmployees(
-                    request.getSkillfilters(),
-                    request.getEmployeefilters(),
-                    offset,
-                    limit)
-            .collectList()
-            .flatMap(employees -> {
-                if (employees.isEmpty()) {
-                    Map<String, String> body = Map.of(
-                            "message", "No employees found matching the filters"
-                    );
-                    return Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).body(body));
-                }
-                return Mono.just(ResponseEntity.ok(employees));
-            })
-            .onErrorResume(e -> {
-                log.error("Error searching employees", e);
-                Map<String, String> errorBody = Map.of(
-                        "message", "An error occurred while searching for employees"
-                );
-                return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorBody));
-            });
-
-}
 
 
 
 
     @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Restricted to Admin")
     @PreAuthorize("hasAuthority('import_employee_skill')")
     public Mono<ResponseEntity<EmployeeSkillImportResponse>> importEmployeeSkills(
             @Parameter(

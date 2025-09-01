@@ -31,4 +31,9 @@ public class JobTitleService {
     public Flux<JobTitle> getAllJobTitles() {
         return repository.findAll();
     }
+
+    // ✅ Compter tous les JobTitles
+    public Mono<Long> countAllJobTitles() {
+        return repository.count();
+    }
 }

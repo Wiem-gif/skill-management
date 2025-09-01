@@ -26,6 +26,10 @@ public class SkillCategoryService {
     public Flux<SkillCategory> getAllSkillCategories() {
         return skillCategoryRepository.findAll();
     }
+    public Mono<Long> countAllSkillCategories() {
+        return skillCategoryRepository.count();
+    }
+
 
     public Mono<SkillCategory> updateSkillCategory(Long id, SkillCategory updatedCategory) {
         return skillCategoryRepository.findById(id)

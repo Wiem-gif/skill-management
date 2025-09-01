@@ -44,7 +44,7 @@ public enum Role {
             Permission.READ_JOB_TITLE,
             Permission.WRITE_JOB_TITLE,
             Permission.READ_EMPLOYEE,
-
+            Permission.WRITE_ROLE_PERMISSION,
             Permission.DELETE_SKILL_CATEGORY,
             Permission.READ_SKILL_CATEGORY
     )),

@@ -31,7 +31,8 @@ public enum Permission {
     UPDATE_SKILL_CATEGORY("update_skill_category"),
     DELETE_SKILL_CATEGORY("delete_skill_category"),
     READ_SKILL_CATEGORY("read_skill_category"),
-    WRITE_JOB_TITLE("write_jobTitle");
+    WRITE_JOB_TITLE("write_jobTitle"),
+    WRITE_ROLE_PERMISSION("write_role_permission");
 
     @Getter
     private final String permission;

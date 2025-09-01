@@ -2,6 +2,7 @@ package com.example.skill_management.service;
 
 import com.example.skill_management.dto.CreateUserRequest;
 import com.example.skill_management.Enum.ErrorCodeEnum;
+import com.example.skill_management.dto.UserResponseDTO;
 import com.example.skill_management.exception.EmailAlreadyExistsException;
 import com.example.skill_management.exception.ProtectedUserDeletionException;
 import com.example.skill_management.exception.RequiredFieldException;
@@ -11,6 +12,7 @@ import com.example.skill_management.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
@@ -71,4 +73,21 @@ public class UserService {
                     return userRepository.deleteById(id);
                 });
     }
+
+    // 🔹 Compter tous les utilisateurs
+    public Mono<Long> countAllUsers() {
+        return userRepository.count();
+    }
+
+    // 🔹 Récupérer les utilisateurs avec pagination (version DTO)
+    public Flux<UserResponseDTO> getAllUsers(int offset, int limit) {
+        return userRepository.findAllWithPagination(offset, limit)
+                .map(user -> new UserResponseDTO(
+                        user.getFirstname(),
+                        user.getLastname(),
+                        user.getEmail(),
+                        user.getRole().name()
+                ));
+    }
+
 }

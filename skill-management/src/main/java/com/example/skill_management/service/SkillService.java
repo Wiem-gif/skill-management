@@ -34,6 +34,10 @@ public class SkillService {
                                 ))
                 );
     }
+    public Mono<Long> countAllSkills() {
+        return repository.count();
+    }
+
 
 
     public Mono<GetAllSkillResponse> findById(Long id) {
@@ -78,10 +82,7 @@ public class SkillService {
     }
 
 
-//    public Flux<Skill> findByCategory(Long categoryId) {
-//        return repository.findBySkillCategoryId(categoryId)
-//                .switchIfEmpty(Mono.error(new SkillNotFoundException()));
-//    }
+
     // 🔹 Cherche ou crée une catégorie par nom
     public Mono<SkillCategory> getOrCreateCategoryByName(String name) {
         return skillCategoryRepository.findByNameIgnoreCase(name)
@@ -92,18 +93,6 @@ public class SkillService {
                 );
     }
 
-//    // 🔹 Mise à jour de la catégorie d'un skill
-//    public Mono<Skill> updateSkillCategory(Long skillId, String categoryName) {
-//        return repository.findById(skillId)
-//                .switchIfEmpty(Mono.error(new RuntimeException("Skill not found")))
-//                .flatMap(skill ->
-//                        getOrCreateCategoryByName(categoryName)
-//                                .flatMap(category -> {
-//                                    skill.setSkillCategoryId(category.getId());
-//                                    return repository.save(skill);
-//                                })
-//                );
-//    }
 
 
 }

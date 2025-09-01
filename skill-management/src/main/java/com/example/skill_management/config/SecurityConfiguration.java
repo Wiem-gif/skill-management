@@ -31,10 +31,9 @@ public class SecurityConfiguration {
 
     private static final String[] WHITE_LIST_URL = {
             "/skill-management/auth/**",
-
-//            "/skill-category/**",
+            "/role-permission/**",
             "/job-titles/**",
-//            "/skills/**",
+
             "/grades/**",
             "/v2/api-docs",
             "/v3/api-docs",
@@ -58,8 +57,7 @@ public class SecurityConfiguration {
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers(WHITE_LIST_URL).permitAll()
                         .pathMatchers("/skill-management/user/**").hasRole(ADMIN.name())
-//                       .pathMatchers("/employee-skills/**").hasRole(ADMIN.name())
-//                                .pathMatchers("/employee-skills/**").authenticated()
+//
                                 .pathMatchers(HttpMethod.GET, "/employee-skills/**")
                                 .hasAnyRole("USER", "ADMIN", "QualityManager", "TechnicalManager")
                                 .pathMatchers(HttpMethod.POST, "/employee-skills/**")
@@ -86,6 +84,12 @@ public class SecurityConfiguration {
                                 .pathMatchers(HttpMethod.DELETE, "/skill-category/**")
                                 .hasRole("ADMIN")
                                 .pathMatchers(HttpMethod.PUT, "/skill-category/**")
+                                .hasRole("ADMIN")
+
+
+                                .pathMatchers(HttpMethod.GET, "/role-permission/**")
+                                .hasAnyRole("USER", "ADMIN", "QualityManager", "TechnicalManager")
+                                .pathMatchers(HttpMethod.POST, "/role-permission/**")
                                 .hasRole("ADMIN")
 
                                 .anyExchange().authenticated()
@@ -135,7 +139,7 @@ public class SecurityConfiguration {
     @Bean
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration config = new CorsConfiguration();
-    //  config.addAllowedOrigin("*");
+
         config.addAllowedOriginPattern("*");
         config.addAllowedMethod("*");
         config.addAllowedHeader("*");
